@@ -1,0 +1,18 @@
+{
+  "short_name": "JARVIS",
+  "name": "J.A.R.V.I.S. Samsung A17 Remote",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/"
+}

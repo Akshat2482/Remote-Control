@@ -1,0 +1,67 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Samsung Galaxy A17 APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Install dependencies & Build Web Assets
+        run: |
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Assemble Native Android APK
+        run: |
+          echo "Configuring Capacitor Android project with Java 21..."
+          npm install --legacy-peer-deps @capacitor/core @capacitor/cli @capacitor/android
+          
+          # Initialize capacitor config
+          cat << 'CONF' > capacitor.config.json
+          {
+            "appId": "com.stark.jarvis.remote",
+            "appName": "JARVIS Remote",
+            "webDir": "dist"
+          }
+          CONF
+
+          npx cap add android
+          npx cap sync android
+
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+          mkdir -p ../output-apk
+          cp app/build/outputs/apk/debug/app-debug.apk ../output-apk/jarvis-samsung-a17.apk
+
+      - name: Upload APK File
+        uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-samsung-a17.apk
+          path: output-apk/jarvis-samsung-a17.apk
+          if-no-files-found: error

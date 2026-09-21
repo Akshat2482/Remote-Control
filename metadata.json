@@ -1,0 +1,10 @@
+{
+  "name": "JARVIS Android App Builder",
+  "description": "JARVIS Android remote control app that moves your PC cursor and automates tasks via voice commands, with GitHub Actions CI/CD and downloadable ZIP.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
