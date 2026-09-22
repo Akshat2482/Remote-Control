@@ -89,6 +89,17 @@ export default function App() {
   const [activeWindow, setActiveWindow] = useState<"outlook" | "chrome" | "vscode" | "claude">("outlook");
   const [selectedEmail, setSelectedEmail] = useState(0);
 
+  // Live Screen Projection & External Screen Handling
+  const [liveScreenFrame, setLiveScreenFrame] = useState<string | null>(null);
+  const [selectedMonitor, setSelectedMonitor] = useState<string>("external");
+  const [availableMonitors, setAvailableMonitors] = useState<
+    Array<{ id: string; name: string; width: number; height: number; isExternal: boolean }>
+  >([
+    { id: "external", name: "External Screen", width: 1920, height: 1080, isExternal: true },
+    { id: "primary", name: "Primary Screen", width: 1920, height: 1080, isExternal: false },
+    { id: "all", name: "All Displays", width: 3840, height: 1080, isExternal: false },
+  ]);
+
   // Connect to Tunnel / Local WebSocket
   const handleConnectTunnel = (urlToUse?: string) => {
     const url = (urlToUse || tunnelUrl).trim();
@@ -103,17 +114,32 @@ export default function App() {
         setIsConnecting(false);
         setIsConnected(true);
         ws.send(JSON.stringify({ type: "auth", token: secretAuth }));
-        addJarvisMessage(`Connected to workstation via ${url}. Live projection active.`);
+        ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
+        ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
+        addJarvisMessage(`Connected to workstation via ${url}. External screen projection active.`);
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "directive_response") {
+          if (data.type === "screen_frame") {
+            setLiveScreenFrame(data.frame);
+            if (data.monitors && Array.isArray(data.monitors)) {
+              setAvailableMonitors(data.monitors);
+            }
+            if (data.activeMonitor) {
+              setSelectedMonitor(data.activeMonitor);
+            }
+          } else if (data.type === "monitors_list") {
+            if (data.monitors && Array.isArray(data.monitors)) {
+              setAvailableMonitors(data.monitors);
+            }
+          } else if (data.type === "directive_response") {
             addJarvisMessage(`[PC] ${data.result}`);
           } else if (data.type === "auth_success") {
             setIsConnected(true);
-            addJarvisMessage("Workstation authentication accepted.");
+            addJarvisMessage("Workstation authentication accepted. Streaming external screen.");
+            ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
           }
         } catch {
           addJarvisMessage(`[PC] ${event.data}`);
@@ -126,6 +152,14 @@ export default function App() {
       socketRef.current = ws;
     } catch {
       setIsConnecting(false);
+    }
+  };
+
+  const handleSelectMonitor = (monId: string) => {
+    setSelectedMonitor(monId);
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "set_monitor", monitor: monId }));
+      socketRef.current.send(JSON.stringify({ type: "request_frame", monitor: monId }));
     }
   };
 
@@ -264,9 +298,9 @@ export default function App() {
 
     setCursorPos({ x, y });
 
-    // Send pointer coordinates to PC
+    // Send pointer coordinates to PC mapped to selected monitor
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ type: "mouse_move", x, y }));
+      socketRef.current.send(JSON.stringify({ type: "mouse_move", x, y, monitor: selectedMonitor }));
     }
   };
 
@@ -387,6 +421,53 @@ export default function App() {
 
           {/* Full Landscape Screen Projection Canvas */}
           <div className="relative flex-1 w-full rounded-3xl p-[1px] bg-gradient-to-b from-white/20 via-cyan-500/20 to-blue-500/30 shadow-[0_16px_48px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
+            {/* Landscape Monitor Switcher Bar */}
+            <div className="flex items-center justify-between px-3 py-1.5 bg-slate-950/90 border-b border-white/10 z-20">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                <span className="text-[11px] font-bold tracking-wider text-emerald-400 uppercase">
+                  {selectedMonitor === "external" ? "🖥️ External Screen (Active)" : selectedMonitor === "primary" ? "💻 Primary Screen" : "🔲 All Displays"}
+                </span>
+                {liveScreenFrame && (
+                  <span className="bg-rose-950/70 border border-rose-500/50 text-rose-300 text-[9px] px-1.5 py-0.2 rounded font-bold animate-pulse">
+                    LIVE
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handleSelectMonitor("external")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    selectedMonitor === "external"
+                      ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  🖥️ External Screen
+                </button>
+                <button
+                  onClick={() => handleSelectMonitor("primary")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    selectedMonitor === "primary"
+                      ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  💻 Primary
+                </button>
+                <button
+                  onClick={() => handleSelectMonitor("all")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    selectedMonitor === "all"
+                      ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_12px_rgba(34,211,238,0.8)]"
+                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  }`}
+                >
+                  🔲 All
+                </button>
+              </div>
+            </div>
+
             <div
               ref={landscapeContainerRef}
               onPointerDown={(e) => {
@@ -406,6 +487,16 @@ export default function App() {
                 backgroundImage: `radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0c1838 55%, #030712 100%)`,
               }}
             >
+              {/* REAL LIVE EXTERNAL SCREEN STREAM (If connected and receiving frames) */}
+              {liveScreenFrame && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
+                  <img
+                    src={liveScreenFrame}
+                    alt="Real Screen Stream"
+                    className="w-full h-full object-contain pointer-events-none select-none"
+                  />
+                </div>
+              )}
               {/* Windows 11 Wallpaper Art */}
               <div className="absolute inset-0 opacity-80 pointer-events-none">
                 <div className="absolute top-[10%] left-[25%] w-[50%] h-[75%] bg-gradient-to-tr from-blue-600 via-cyan-400 to-indigo-700 rounded-full blur-[65px] opacity-40 mix-blend-screen" />
@@ -652,6 +743,53 @@ export default function App() {
           {/* CENTRAL PC PROJECTION SCREEN (Liquid Glass with interactive textbox detection) */}
           <div className="relative rounded-3xl p-[1px] bg-gradient-to-b from-white/20 via-cyan-500/20 to-blue-500/30 shadow-[0_16px_48px_rgba(0,0,0,0.8)] mb-3">
             <div className="rounded-[23px] bg-[#070f22] overflow-hidden flex flex-col relative aspect-[16/10] min-h-[220px]">
+              {/* Home Screen Monitor Switcher Header */}
+              <div className="flex items-center justify-between px-3 py-1.5 bg-slate-950/90 border-b border-white/10 z-20">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
+                  <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase">
+                    {selectedMonitor === "external" ? "🖥️ External Screen" : selectedMonitor === "primary" ? "💻 Primary" : "🔲 All"}
+                  </span>
+                  {liveScreenFrame && (
+                    <span className="bg-rose-950/70 border border-rose-500/50 text-rose-300 text-[8px] px-1 py-0.2 rounded font-bold animate-pulse">
+                      LIVE
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleSelectMonitor("external")}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all ${
+                      selectedMonitor === "external"
+                        ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_8px_rgba(34,211,238,0.8)]"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                    }`}
+                  >
+                    🖥️ External
+                  </button>
+                  <button
+                    onClick={() => handleSelectMonitor("primary")}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all ${
+                      selectedMonitor === "primary"
+                        ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_8px_rgba(34,211,238,0.8)]"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                    }`}
+                  >
+                    💻 Primary
+                  </button>
+                  <button
+                    onClick={() => handleSelectMonitor("all")}
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-all ${
+                      selectedMonitor === "all"
+                        ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_8px_rgba(34,211,238,0.8)]"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                    }`}
+                  >
+                    🔲 All
+                  </button>
+                </div>
+              </div>
+
               <div
                 ref={screenContainerRef}
                 onPointerDown={(e) => {
@@ -671,6 +809,16 @@ export default function App() {
                   backgroundImage: `radial-gradient(circle at 50% 60%, #1e3a8a 0%, #0c1838 50%, #030712 100%)`,
                 }}
               >
+                {/* REAL LIVE EXTERNAL SCREEN STREAM (If connected and receiving frames) */}
+                {liveScreenFrame && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
+                    <img
+                      src={liveScreenFrame}
+                      alt="Real Screen Stream"
+                      className="w-full h-full object-contain pointer-events-none select-none"
+                    />
+                  </div>
+                )}
                 {/* Windows 11 Wallpaper */}
                 <div className="absolute inset-0 opacity-75 pointer-events-none">
                   <div className="absolute top-[10%] left-[30%] w-[50%] h-[75%] bg-gradient-to-tr from-blue-600 via-cyan-400 to-indigo-700 rounded-full blur-[50px] opacity-40 mix-blend-screen" />
