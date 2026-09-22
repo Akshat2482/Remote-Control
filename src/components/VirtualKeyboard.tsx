@@ -39,15 +39,15 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
     >
       {/* Header bar */}
       <div className="flex items-center justify-between text-xs text-cyan-300 font-mono">
-        <span className="font-bold flex items-center gap-1.5">
-          <KeyboardIcon className="h-3.5 w-3.5 text-cyan-400 drop-shadow-[0_0_6px_#22d3ee]" />
-          <span className="tracking-wide">
-            PC KEYBOARD {activeFocusTarget ? `(${activeFocusTarget})` : "(WORKSTATION)"}
+        <span className="font-bold flex items-center gap-1.5 truncate">
+          <KeyboardIcon className="h-3.5 w-3.5 text-cyan-400 drop-shadow-[0_0_6px_#22d3ee] shrink-0" />
+          <span className="tracking-wide truncate">
+            KEYBOARD {activeFocusTarget ? `(${activeFocusTarget})` : ""}
           </span>
         </span>
         <button
           onClick={onClose}
-          className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+          className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all touch-manipulation shrink-0"
           title="Close Virtual Keyboard"
         >
           <X className="h-4 w-4" />
@@ -66,14 +66,14 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
               onSendKey("enter");
             }
           }}
-          placeholder="Type here to stream directly to PC..."
-          className="flex-1 bg-black/60 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 border border-cyan-500/30 focus:border-cyan-400 focus:outline-none font-mono shadow-inner transition-colors"
+          placeholder="Type to send to PC..."
+          className="flex-1 bg-black/60 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 border border-cyan-500/30 focus:border-cyan-400 focus:outline-none font-mono shadow-inner transition-colors"
           autoFocus
         />
         <button
           onClick={onSendBuffer}
           disabled={!buffer.trim()}
-          className="px-3.5 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 disabled:opacity-40 disabled:hover:bg-cyan-500 active:scale-95 transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(6,182,212,0.4)]"
+          className="px-3 py-1.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 disabled:opacity-40 disabled:hover:bg-cyan-500 active:scale-95 transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(6,182,212,0.4)] touch-manipulation shrink-0"
         >
           <span>Send</span>
           <CornerDownLeft className="h-3.5 w-3.5" />
@@ -81,42 +81,51 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
       </div>
 
       {/* Special Keys Rows */}
-      <div className="grid grid-cols-6 gap-1 text-[11px] font-mono">
+      <div className="grid grid-cols-6 gap-1 text-[10px] sm:text-[11px] font-mono">
         {["Esc", "Tab", "Win", "Ctrl", "Alt", "Enter"].map((k) => (
           <button
             key={k}
             onClick={() => onSendKey(k)}
-            className="py-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-slate-200 hover:border-cyan-400/80 hover:text-cyan-300 hover:bg-white/10 active:scale-95 transition-all text-center font-medium shadow-sm"
+            className="py-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-slate-200 hover:border-cyan-400/80 hover:text-cyan-300 hover:bg-white/10 active:scale-95 transition-all text-center font-medium shadow-sm touch-manipulation truncate"
           >
             {k}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1 text-[11px] font-mono">
-        {["Backspace", "Space", "F5", "Delete", "Ctrl+C", "Ctrl+V", "Ctrl+Z", "F11"].map((k) => (
+      <div className="grid grid-cols-4 sm:grid-cols-8 gap-1 text-[10px] font-mono">
+        {[
+          { label: "⌫ Bksp", val: "Backspace" },
+          { label: "Space", val: "Space" },
+          { label: "F5", val: "F5" },
+          { label: "Del", val: "Delete" },
+          { label: "Ctrl+C", val: "Ctrl+C" },
+          { label: "Ctrl+V", val: "Ctrl+V" },
+          { label: "Ctrl+Z", val: "Ctrl+Z" },
+          { label: "F11", val: "F11" },
+        ].map(({ label, val }) => (
           <button
-            key={k}
-            onClick={() => onSendKey(k)}
-            className="py-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-slate-300 hover:border-cyan-400/80 hover:text-cyan-300 hover:bg-white/10 active:scale-95 transition-all text-center text-[10px] sm:text-[11px]"
+            key={val}
+            onClick={() => onSendKey(val)}
+            className="py-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-slate-300 hover:border-cyan-400/80 hover:text-cyan-300 hover:bg-white/10 active:scale-95 transition-all text-center touch-manipulation truncate"
           >
-            {k}
+            {label}
           </button>
         ))}
       </div>
 
       {/* Arrow navigation keys row */}
       <div className="flex items-center justify-between pt-0.5">
-        <div className="flex items-center gap-1 text-[10px] text-slate-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Keystrokes streamed instantly to PC</span>
+        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-slate-400 truncate">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+          <span className="truncate">Streams instantly to PC</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {["←", "↑", "↓", "→"].map((arrow) => (
             <button
               key={arrow}
               onClick={() => onSendKey(arrow)}
-              className="h-6 w-8 rounded-lg bg-white/[0.05] border border-white/10 text-slate-300 hover:border-cyan-400/80 hover:text-cyan-300 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center text-xs"
+              className="h-6 w-7 sm:w-8 rounded-lg bg-white/[0.05] border border-white/10 text-slate-300 hover:border-cyan-400/80 hover:text-cyan-300 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center text-xs touch-manipulation"
             >
               {arrow}
             </button>
