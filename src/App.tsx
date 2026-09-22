@@ -487,170 +487,29 @@ export default function App() {
                 backgroundImage: `radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0c1838 55%, #030712 100%)`,
               }}
             >
-              {/* REAL LIVE EXTERNAL SCREEN STREAM (If connected and receiving frames) */}
-              {liveScreenFrame && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
+              {/* REAL LIVE WORKSTATION SCREEN FEED */}
+              {liveScreenFrame ? (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black select-none">
                   <img
                     src={liveScreenFrame}
                     alt="Real Screen Stream"
                     className="w-full h-full object-contain pointer-events-none select-none"
                   />
                 </div>
+              ) : (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-slate-950/90 select-none">
+                  <div className="relative mb-3">
+                    <Monitor className="h-12 w-12 text-cyan-400 animate-pulse" />
+                    <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-cyan-400 animate-ping" />
+                  </div>
+                  <p className="text-sm font-bold text-white tracking-wide">
+                    Waiting for Live Screen Stream...
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                    Connecting to workstation. Your unhindered screen feed will stream here in real time.
+                  </p>
+                </div>
               )}
-              {/* Windows 11 Wallpaper Art */}
-              <div className="absolute inset-0 opacity-80 pointer-events-none">
-                <div className="absolute top-[10%] left-[25%] w-[50%] h-[75%] bg-gradient-to-tr from-blue-600 via-cyan-400 to-indigo-700 rounded-full blur-[65px] opacity-40 mix-blend-screen" />
-                <div className="absolute bottom-[5%] right-[20%] w-[45%] h-[60%] bg-gradient-to-tl from-indigo-500 via-blue-500 to-cyan-500 rounded-full blur-[60px] opacity-45 mix-blend-screen" />
-              </div>
-
-              {/* Desktop Icons in Landscape */}
-              <div className="absolute left-4 top-4 bottom-10 w-16 flex flex-col gap-3 z-10 pointer-events-auto">
-                <div
-                  onClick={() => addJarvisMessage("Recycle Bin opened.")}
-                  className="flex flex-col items-center p-1.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                >
-                  <Trash2 className="h-5 w-5 text-cyan-300 drop-shadow" />
-                  <span className="text-[9px] text-slate-200 mt-1 font-medium">Recycle Bin</span>
-                </div>
-                <div
-                  onClick={() => handleSendCommand("open chrome")}
-                  className="flex flex-col items-center p-1.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                >
-                  <div className="h-5 w-5 rounded-full bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 flex items-center justify-center">
-                    <span className="h-2 w-2 rounded-full bg-blue-500" />
-                  </div>
-                  <span className="text-[9px] text-slate-200 mt-1 font-medium">Chrome</span>
-                </div>
-                <div
-                  onClick={() => handleSendCommand("open claude and type continue and hit enter")}
-                  className="flex flex-col items-center p-1.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                >
-                  <Sparkles className="h-5 w-5 text-amber-300 drop-shadow" />
-                  <span className="text-[9px] text-amber-200 mt-1 font-medium">Claude AI</span>
-                </div>
-                <div
-                  onClick={() => handleSendCommand("open vs code")}
-                  className="flex flex-col items-center p-1.5 rounded-xl hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                >
-                  <Code2 className="h-5 w-5 text-cyan-400 drop-shadow" />
-                  <span className="text-[9px] text-slate-200 mt-1 font-medium">VS Code</span>
-                </div>
-              </div>
-
-              {/* Central Window in Landscape (Outlook / Claude / Code) */}
-              <div className="absolute inset-x-24 top-4 bottom-10 z-10 rounded-2xl bg-slate-900/90 border border-white/15 backdrop-blur-2xl shadow-2xl flex flex-col overflow-hidden">
-                {/* Title Bar */}
-                <div className="h-8 bg-slate-950/90 border-b border-slate-800 px-3 flex items-center justify-between text-xs text-slate-300">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-cyan-400">
-                      {activeWindow === "claude" ? "Claude 3.7 Sonnet" : "Outlook"}
-                    </span>
-                    {/* Clickable Search Bar that triggers virtual keyboard! */}
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        triggerTextboxFocus("Outlook Search");
-                      }}
-                      className="bg-slate-800/80 px-3 py-1 rounded-lg border border-cyan-500/30 text-[10px] text-slate-300 flex items-center gap-1.5 cursor-text hover:border-cyan-400 transition-colors"
-                    >
-                      <Search className="h-2.5 w-2.5 text-slate-400" />
-                      <span>{keyboardBuffer || "Search or type command (Click to type)..."}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-400 text-xs">
-                    <span className="cursor-pointer hover:text-white">_</span>
-                    <span className="cursor-pointer hover:text-white">▢</span>
-                    <span className="cursor-pointer hover:text-rose-400">✕</span>
-                  </div>
-                </div>
-
-                {/* Window Body */}
-                <div className="flex-1 flex overflow-hidden">
-                  <div className="w-10 bg-slate-950/60 border-r border-slate-800 flex flex-col items-center py-3 gap-3 text-slate-400 text-xs">
-                    <span className="text-cyan-400 font-bold">✉</span>
-                    <span>📅</span>
-                    <span>👥</span>
-                    <span>📁</span>
-                  </div>
-
-                  <div className="flex-1 flex flex-col p-3 overflow-hidden">
-                    <div className="flex items-center justify-between text-xs border-b border-slate-800 pb-1.5 mb-2 text-slate-300">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-white">Inbox</span>
-                        <span className="text-cyan-400 font-medium border-b border-cyan-400 pb-0.5">Focused</span>
-                        <span className="text-slate-500">Other</span>
-                      </div>
-                      <span className="text-slate-400 text-[11px]">Filter ▾</span>
-                    </div>
-
-                    <div className="flex-1 space-y-1.5 overflow-hidden">
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedEmail(0);
-                          triggerTextboxFocus("Email Reply Box");
-                        }}
-                        className={`p-2 rounded-xl text-xs transition-colors cursor-pointer ${
-                          selectedEmail === 0 ? "bg-cyan-950/60 border border-cyan-600/50" : "hover:bg-slate-800/40"
-                        }`}
-                      >
-                        <div className="flex justify-between font-bold text-cyan-300">
-                          <span>Microsoft</span>
-                          <span className="text-[10px] text-slate-400">10:24 AM</span>
-                        </div>
-                        <p className="text-slate-200 font-medium">Welcome to Microsoft 365</p>
-                        <p className="text-slate-400 text-[11px] truncate">
-                          {keyboardBuffer ? `Draft: ${keyboardBuffer}` : "Click here to reply with phone keyboard..."}
-                        </p>
-                      </div>
-
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedEmail(1);
-                        }}
-                        className={`p-2 rounded-xl text-xs transition-colors cursor-pointer ${
-                          selectedEmail === 1 ? "bg-cyan-950/60 border border-cyan-600/50" : "hover:bg-slate-800/40"
-                        }`}
-                      >
-                        <div className="flex justify-between font-bold text-cyan-300">
-                          <span>Team Project</span>
-                          <span className="text-[10px] text-slate-400">9:42 AM</span>
-                        </div>
-                        <p className="text-slate-200 font-medium">Project Update - AI Remote Assistant</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Windows 11 Taskbar */}
-              <div className="absolute inset-x-0 bottom-0 h-8 bg-slate-950/95 border-t border-slate-800 backdrop-blur-xl flex items-center justify-between px-3 text-xs text-slate-400 z-20">
-                <div className="flex items-center gap-2">
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      triggerTextboxFocus("Windows Search");
-                    }}
-                    className="flex items-center gap-1.5 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700 text-slate-300 cursor-text hover:border-cyan-400 transition-colors"
-                  >
-                    <span className="text-cyan-400 font-bold">❖</span>
-                    <span>Search</span>
-                  </div>
-                  <div className="flex items-center gap-2 pl-2">
-                    <span className="cursor-pointer">📁</span>
-                    <span className="cursor-pointer">🌐</span>
-                    <span className="cursor-pointer">✉</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-slate-300 text-xs">
-                  <span>^</span>
-                  <span>📶</span>
-                  <span>🔊</span>
-                  <span className="font-mono font-medium">4:32 PM</span>
-                </div>
-              </div>
 
               {/* SPECIAL J.A.R.V.I.S. CURSOR RETICLE */}
               <div
@@ -685,17 +544,27 @@ export default function App() {
             <div className="flex items-center gap-3">
               {/* Miniature PC Screen Thumbnail with glowing neon frame */}
               <div className="relative h-12 w-16 rounded-xl border border-cyan-400/60 bg-[#070e1f] p-0.5 shadow-[0_0_16px_rgba(6,182,212,0.4)] flex flex-col justify-between overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-950/40 via-[#071329] to-blue-950/40" />
-                <div className="relative z-10 w-full h-full flex flex-col justify-between p-1">
-                  <div className="flex justify-between items-center text-[7px] text-cyan-300">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                    <span className="text-[7px] font-mono opacity-90">PC</span>
-                  </div>
-                  <div className="w-9 h-4 rounded bg-slate-800/80 border border-cyan-500/40 mx-auto flex items-center justify-center text-[7px] text-cyan-200">
-                    Outlook
-                  </div>
-                  <div className="w-full h-1 bg-cyan-900/50 rounded-xs" />
-                </div>
+                {liveScreenFrame ? (
+                  <img
+                    src={liveScreenFrame}
+                    alt="Workstation Preview"
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-950/40 via-[#071329] to-blue-950/40" />
+                    <div className="relative z-10 w-full h-full flex flex-col justify-between p-1">
+                      <div className="flex justify-between items-center text-[7px] text-cyan-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                        <span className="text-[7px] font-mono opacity-90">LIVE</span>
+                      </div>
+                      <div className="flex items-center justify-center text-[7px] text-cyan-200">
+                        <Monitor className="h-4 w-4 text-cyan-400" />
+                      </div>
+                      <div className="w-full h-1 bg-cyan-900/50 rounded-xs" />
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Title & Connection Details */}
@@ -809,206 +678,29 @@ export default function App() {
                   backgroundImage: `radial-gradient(circle at 50% 60%, #1e3a8a 0%, #0c1838 50%, #030712 100%)`,
                 }}
               >
-                {/* REAL LIVE EXTERNAL SCREEN STREAM (If connected and receiving frames) */}
-                {liveScreenFrame && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
+                {/* REAL LIVE WORKSTATION SCREEN FEED */}
+                {liveScreenFrame ? (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-black select-none">
                     <img
                       src={liveScreenFrame}
                       alt="Real Screen Stream"
                       className="w-full h-full object-contain pointer-events-none select-none"
                     />
                   </div>
+                ) : (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-4 bg-slate-950/90 select-none">
+                    <div className="relative mb-2">
+                      <Monitor className="h-9 w-9 text-cyan-400 animate-pulse" />
+                      <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-cyan-400 animate-ping" />
+                    </div>
+                    <p className="text-xs font-bold text-white tracking-wide">
+                      Waiting for Workstation Screen Feed...
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 max-w-xs">
+                      Make sure <code className="text-cyan-300 font-mono">python pc.py</code> is running. Your live screen will stream cleanly here with no artificial overlays.
+                    </p>
+                  </div>
                 )}
-                {/* Windows 11 Wallpaper */}
-                <div className="absolute inset-0 opacity-75 pointer-events-none">
-                  <div className="absolute top-[10%] left-[30%] w-[50%] h-[75%] bg-gradient-to-tr from-blue-600 via-cyan-400 to-indigo-700 rounded-full blur-[50px] opacity-40 mix-blend-screen" />
-                  <div className="absolute bottom-[5%] right-[20%] w-[45%] h-[60%] bg-gradient-to-tl from-indigo-500 via-blue-500 to-cyan-500 rounded-full blur-[45px] opacity-45 mix-blend-screen" />
-                </div>
-
-                {/* Desktop Icons */}
-                <div className="absolute left-2 top-2 bottom-7 w-12 flex flex-col gap-2 z-10 pointer-events-auto">
-                  <div
-                    onClick={() => addJarvisMessage("Recycle Bin opened.")}
-                    className="flex flex-col items-center p-1 rounded hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                  >
-                    <Trash2 className="h-4 w-4 text-cyan-300 drop-shadow" />
-                    <span className="text-[7px] text-slate-200 mt-0.5 tracking-tight scale-90">Recycle Bin</span>
-                  </div>
-
-                  <div
-                    onClick={() => handleSendCommand("open edge")}
-                    className="flex flex-col items-center p-1 rounded hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                  >
-                    <Globe className="h-4 w-4 text-emerald-400 drop-shadow" />
-                    <span className="text-[7px] text-slate-200 mt-0.5 tracking-tight scale-90">Edge</span>
-                  </div>
-
-                  <div
-                    onClick={() => handleSendCommand("open chrome")}
-                    className="flex flex-col items-center p-1 rounded hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                  >
-                    <div className="h-4 w-4 rounded-full bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 flex items-center justify-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                    </div>
-                    <span className="text-[7px] text-slate-200 mt-0.5 tracking-tight scale-90">Chrome</span>
-                  </div>
-
-                  <div
-                    onClick={() => addJarvisMessage("Discord opened.")}
-                    className="flex flex-col items-center p-1 rounded hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                  >
-                    <MessageSquare className="h-4 w-4 text-indigo-400 drop-shadow" />
-                    <span className="text-[7px] text-slate-200 mt-0.5 tracking-tight scale-90">Discord</span>
-                  </div>
-
-                  <div
-                    onClick={() => addJarvisMessage("Steam opened.")}
-                    className="flex flex-col items-center p-1 rounded hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                  >
-                    <Gamepad2 className="h-4 w-4 text-blue-300 drop-shadow" />
-                    <span className="text-[7px] text-slate-200 mt-0.5 tracking-tight scale-90">Steam</span>
-                  </div>
-
-                  <div
-                    onClick={() => handleSendCommand("open vs code")}
-                    className="flex flex-col items-center p-1 rounded hover:bg-white/10 active:scale-95 transition-all text-center cursor-pointer"
-                  >
-                    <Code2 className="h-4 w-4 text-cyan-400 drop-shadow" />
-                    <span className="text-[7px] text-slate-200 mt-0.5 tracking-tight scale-90">VS Code</span>
-                  </div>
-                </div>
-
-                {/* Centered Active Window: Outlook Inbox with Textbox click trigger */}
-                <div className="absolute inset-x-14 top-2 bottom-7 z-10 rounded-xl bg-slate-900/90 border border-slate-700/70 backdrop-blur-md shadow-2xl flex flex-col overflow-hidden">
-                  {/* Title Bar with Search Textbox */}
-                  <div className="h-6 bg-slate-950/80 border-b border-slate-800 px-2 flex items-center justify-between text-[9px] text-slate-300">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[8px] font-bold text-cyan-400">Outlook</span>
-                      {/* Clicking this textbox pops up the phone keyboard! */}
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          triggerTextboxFocus("Outlook Search Bar");
-                        }}
-                        className="bg-slate-800/80 px-2 py-0.5 rounded text-[7px] text-slate-300 flex items-center gap-1 cursor-text hover:border hover:border-cyan-400 transition-all"
-                      >
-                        <Search className="h-2 w-2 text-slate-400" />
-                        <span>{keyboardBuffer || "Search (click to type)..."}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-slate-400 text-[8px]">
-                      <span>_</span>
-                      <span>▢</span>
-                      <span>✕</span>
-                    </div>
-                  </div>
-
-                  {/* Window Body */}
-                  <div className="flex-1 flex overflow-hidden">
-                    <div className="w-8 bg-slate-950/50 border-r border-slate-800/80 flex flex-col items-center py-2 gap-2 text-slate-400 text-[8px]">
-                      <span className="text-cyan-400 font-bold">✉</span>
-                      <span>📅</span>
-                      <span>👥</span>
-                      <span>📁</span>
-                    </div>
-
-                    <div className="flex-1 flex flex-col p-1.5 overflow-hidden">
-                      <div className="flex items-center justify-between text-[8px] border-b border-slate-800 pb-1 mb-1 text-slate-300">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-white">Inbox</span>
-                          <span className="text-cyan-400 text-[7px] font-medium border-b border-cyan-400 pb-0.5">
-                            Focused
-                          </span>
-                          <span className="text-slate-500 text-[7px]">Other</span>
-                        </div>
-                        <span className="text-[7px] text-slate-500">Filter ▾</span>
-                      </div>
-
-                      {/* Emails */}
-                      <div className="flex-1 space-y-1 overflow-hidden">
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedEmail(0);
-                            triggerTextboxFocus("Email Text Area");
-                          }}
-                          className={`p-1 rounded text-[7px] transition-colors cursor-pointer ${
-                            selectedEmail === 0 ? "bg-cyan-950/60 border border-cyan-700/50" : "hover:bg-slate-800/40"
-                          }`}
-                        >
-                          <div className="flex justify-between font-bold text-cyan-300">
-                            <span>Microsoft</span>
-                            <span className="text-[6px] text-slate-400">10:24 AM</span>
-                          </div>
-                          <p className="text-slate-200 truncate font-medium">Welcome to Microsoft 365</p>
-                          <p className="text-slate-400 truncate text-[6px]">
-                            {keyboardBuffer ? `Input: ${keyboardBuffer}` : "Click to type into this email..."}
-                          </p>
-                        </div>
-
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedEmail(1);
-                          }}
-                          className={`p-1 rounded text-[7px] transition-colors cursor-pointer ${
-                            selectedEmail === 1 ? "bg-cyan-950/60 border border-cyan-700/50" : "hover:bg-slate-800/40"
-                          }`}
-                        >
-                          <div className="flex justify-between font-bold text-cyan-300">
-                            <span>Team Project</span>
-                            <span className="text-[6px] text-slate-400">9:42 AM</span>
-                          </div>
-                          <p className="text-slate-200 truncate font-medium">Project Update</p>
-                        </div>
-
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedEmail(2);
-                          }}
-                          className={`p-1 rounded text-[7px] transition-colors cursor-pointer ${
-                            selectedEmail === 2 ? "bg-cyan-950/60 border border-cyan-700/50" : "hover:bg-slate-800/40"
-                          }`}
-                        >
-                          <div className="flex justify-between font-bold text-cyan-300">
-                            <span>Amazon</span>
-                            <span className="text-[6px] text-slate-400">8:17 AM</span>
-                          </div>
-                          <p className="text-slate-200 truncate font-medium">Your order has shipped</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Windows 11 Taskbar with Search Textbox */}
-                <div className="absolute inset-x-0 bottom-0 h-6 bg-slate-950/90 border-t border-slate-800 backdrop-blur-md flex items-center justify-between px-2 text-[7px] text-slate-400 z-20">
-                  <div className="flex items-center gap-1">
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        triggerTextboxFocus("Windows Taskbar Search");
-                      }}
-                      className="flex items-center gap-1 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800 text-[7px] text-slate-300 cursor-text hover:border-cyan-400 transition-colors"
-                    >
-                      <span className="text-cyan-400">❖</span>
-                      <span>Search</span>
-                    </div>
-                    <div className="flex items-center gap-1 pl-1">
-                      <span>📁</span>
-                      <span>🌐</span>
-                      <span>✉</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-[6px]">
-                    <span>^</span>
-                    <span>📶</span>
-                    <span>🔊</span>
-                    <span className="font-mono text-slate-200">4:32 PM</span>
-                  </div>
-                </div>
 
                 {/* J.A.R.V.I.S. CURSOR */}
                 <div
