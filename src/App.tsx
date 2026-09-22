@@ -94,6 +94,7 @@ export default function App() {
   // Live Screen Projection & External Screen Handling
   const [liveScreenFrame, setLiveScreenFrame] = useState<string | null>(null);
   const [selectedMonitor, setSelectedMonitor] = useState<string>("external");
+  const selectedMonitorRef = useRef<string>("external");
   const [availableMonitors, setAvailableMonitors] = useState<
     Array<{ id: string; name: string; width: number; height: number; isExternal: boolean }>
   >([
@@ -137,9 +138,9 @@ export default function App() {
         setIsConnecting(false);
         setIsConnected(true);
         ws.send(JSON.stringify({ type: "auth", token }));
-        ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
-        ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
-        addJarvisMessage(`Connected to workstation via ${url.includes("ws/relay") ? "Secure Cloud Relay" : url}. External screen streaming active.`);
+        ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitorRef.current }));
+        ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitorRef.current }));
+        addJarvisMessage(`Connected to workstation via ${url.includes("ws/relay") ? "Secure Cloud Relay" : url}. Streaming monitor feed.`);
       };
 
       ws.onmessage = (event) => {
@@ -148,21 +149,22 @@ export default function App() {
           if (data.type === "pc_status") {
             if (data.status === "online") {
               setIsConnected(true);
-              ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
-              ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
-              addJarvisMessage("Workstation is ONLINE via Cloud Relay. Streaming external screen.");
+              ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitorRef.current }));
+              ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitorRef.current }));
+              addJarvisMessage("Workstation is ONLINE via Cloud Relay. Streaming monitor feed.");
             } else {
               setIsConnected(false);
               addJarvisMessage("Cloud Relay active. Waiting for PC workstation (run 'python pc.py' on PC)...");
             }
           } else if (data.type === "screen_frame") {
+            // Strictly check that the incoming frame matches the user's requested monitor
+            if (data.activeMonitor && data.activeMonitor !== selectedMonitorRef.current) {
+              return;
+            }
             setIsConnected(true);
             setLiveScreenFrame(data.frame);
             if (data.monitors && Array.isArray(data.monitors)) {
               setAvailableMonitors(data.monitors);
-            }
-            if (data.activeMonitor) {
-              setSelectedMonitor(data.activeMonitor);
             }
           } else if (data.type === "monitors_list") {
             if (data.monitors && Array.isArray(data.monitors)) {
@@ -173,8 +175,9 @@ export default function App() {
           } else if (data.type === "auth_success") {
             setIsConnected(true);
             if (data.os) setOsName(data.os);
-            addJarvisMessage("Workstation authentication accepted. Streaming external screen.");
-            ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
+            addJarvisMessage("Workstation authentication accepted. Streaming monitor feed.");
+            ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitorRef.current }));
+            ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitorRef.current }));
           }
         } catch {
           addJarvisMessage(`[PC] ${event.data}`);
@@ -216,9 +219,9 @@ export default function App() {
     // Keepalive / frame requester interval if connected
     const keepaliveInterval = setInterval(() => {
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
+        socketRef.current.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitorRef.current }));
       }
-    }, 4000);
+    }, 3000);
 
     return () => {
       clearInterval(keepaliveInterval);
@@ -234,8 +237,12 @@ export default function App() {
 
   const handleSelectMonitor = (monId: string) => {
     setSelectedMonitor(monId);
+    selectedMonitorRef.current = monId;
+    // Clear live frame so there is no residual artifact from the previous monitor feed
+    setLiveScreenFrame(null);
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ type: "set_monitor", monitor: monId }));
+      socketRef.current.send(JSON.stringify({ type: "start_stream", monitor: monId }));
       socketRef.current.send(JSON.stringify({ type: "request_frame", monitor: monId }));
     }
   };
@@ -383,7 +390,7 @@ export default function App() {
 
     // Send pointer coordinates to PC mapped to selected monitor
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ type: "mouse_move", x, y, monitor: selectedMonitor }));
+      socketRef.current.send(JSON.stringify({ type: "mouse_move", x, y, monitor: selectedMonitorRef.current }));
     }
   };
 
@@ -622,22 +629,20 @@ export default function App() {
                 if (isDraggingCursor) handlePointerInteraction(e, landscapeContainerRef);
               }}
               onPointerUp={handlePointerUp}
-              className="relative flex-1 w-full min-h-[420px] sm:min-h-[520px] rounded-[23px] overflow-hidden bg-[#070f22] select-none cursor-crosshair touch-none"
-              style={{
-                backgroundImage: `radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0c1838 55%, #030712 100%)`,
-              }}
+              className="relative flex-1 w-full min-h-[420px] sm:min-h-[520px] rounded-[23px] overflow-hidden bg-black select-none cursor-crosshair touch-none"
             >
-              {/* REAL LIVE WORKSTATION SCREEN FEED */}
+              {/* CLEAN LIVE WORKSTATION SCREEN FEED (REQUESTED MONITOR ONLY) */}
               {liveScreenFrame ? (
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-black select-none">
                   <img
                     src={liveScreenFrame}
-                    alt="Real Screen Stream"
+                    alt={`Monitor Stream - ${selectedMonitor}`}
                     className="w-full h-full object-contain pointer-events-none select-none"
+                    style={{ imageRendering: "auto" }}
                   />
                 </div>
               ) : (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-slate-950/90 select-none">
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-slate-950/95 select-none">
                   <div className="relative mb-3">
                     <Monitor className="h-12 w-12 text-cyan-400 animate-pulse" />
                     <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-cyan-400 animate-ping" />
@@ -646,30 +651,24 @@ export default function App() {
                     Waiting for Live Screen Stream...
                   </p>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                    Connecting to workstation. Your unhindered screen feed will stream here in real time.
+                    Connecting to workstation. Displaying requested feed: <span className="text-cyan-300 font-mono font-bold">{selectedMonitor}</span>.
                   </p>
                 </div>
               )}
 
-              {/* SPECIAL J.A.R.V.I.S. CURSOR RETICLE */}
-              <div
-                className="absolute pointer-events-none transition-transform duration-75 ease-out select-none z-30"
-                style={{
-                  left: `${cursorPos.x}%`,
-                  top: `${cursorPos.y}%`,
-                  transform: "translate(-10%, -10%)",
-                }}
-              >
-                <div className="flex items-center gap-1">
-                  <MousePointer className="h-4 w-4 text-cyan-400 fill-cyan-400 drop-shadow-[0_0_8px_#22d3ee]" />
-                  <div className="bg-black border border-cyan-500/90 px-1.5 py-0.5 rounded shadow-[0_0_12px_rgba(6,182,212,0.8)] flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping" />
-                    <span className="font-mono font-black text-[10px] tracking-wider text-cyan-400">
-                      JARVIS
-                    </span>
-                  </div>
+              {/* Minimal touch feedback ring ONLY when actively touching/dragging - zero overlapping virtual UI badges */}
+              {isDraggingCursor && (
+                <div
+                  className="absolute pointer-events-none transition-transform duration-75 ease-out select-none z-30"
+                  style={{
+                    left: `${cursorPos.x}%`,
+                    top: `${cursorPos.y}%`,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                >
+                  <div className="h-6 w-6 rounded-full border border-cyan-400/80 bg-cyan-400/20 shadow-[0_0_12px_rgba(34,211,238,0.7)]" />
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -825,22 +824,20 @@ export default function App() {
                   if (isDraggingCursor) handlePointerInteraction(e, screenContainerRef);
                 }}
                 onPointerUp={handlePointerUp}
-                className="relative flex-1 w-full h-full cursor-crosshair touch-none select-none overflow-hidden"
-                style={{
-                  backgroundImage: `radial-gradient(circle at 50% 60%, #1e3a8a 0%, #0c1838 50%, #030712 100%)`,
-                }}
+                className="relative flex-1 w-full h-full cursor-crosshair touch-none select-none overflow-hidden bg-black"
               >
-                {/* REAL LIVE WORKSTATION SCREEN FEED */}
+                {/* CLEAN LIVE WORKSTATION SCREEN FEED (REQUESTED MONITOR ONLY) */}
                 {liveScreenFrame ? (
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-black select-none">
                     <img
                       src={liveScreenFrame}
-                      alt="Real Screen Stream"
+                      alt={`Monitor Stream - ${selectedMonitor}`}
                       className="w-full h-full object-contain pointer-events-none select-none"
+                      style={{ imageRendering: "auto" }}
                     />
                   </div>
                 ) : (
-                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-4 bg-slate-950/90 select-none">
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-4 bg-slate-950/95 select-none">
                     <div className="relative mb-2">
                       <Monitor className="h-9 w-9 text-cyan-400 animate-pulse" />
                       <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-cyan-400 animate-ping" />
@@ -849,30 +846,24 @@ export default function App() {
                       Waiting for Workstation Screen Feed...
                     </p>
                     <p className="text-[10px] text-slate-400 mt-0.5 max-w-xs">
-                      Make sure <code className="text-cyan-300 font-mono">python pc.py</code> is running on your PC. It will automatically connect to this Cloud Relay!
+                      Make sure <code className="text-cyan-300 font-mono">python pc.py</code> is running on your PC. Requested display: <span className="text-cyan-300 font-mono font-semibold">{selectedMonitor}</span>.
                     </p>
                   </div>
                 )}
 
-                {/* J.A.R.V.I.S. CURSOR */}
-                <div
-                  className="absolute pointer-events-none transition-transform duration-75 ease-out select-none z-30"
-                  style={{
-                    left: `${cursorPos.x}%`,
-                    top: `${cursorPos.y}%`,
-                    transform: "translate(-10%, -10%)",
-                  }}
-                >
-                  <div className="flex items-center gap-1">
-                    <MousePointer className="h-3.5 w-3.5 text-cyan-400 fill-cyan-400 drop-shadow-[0_0_8px_#22d3ee]" />
-                    <div className="bg-black border border-cyan-500/90 px-1.5 py-0.2 rounded shadow-[0_0_12px_rgba(6,182,212,0.8)] flex items-center gap-1">
-                      <span className="h-1 w-1 rounded-full bg-cyan-400 animate-ping" />
-                      <span className="font-mono font-black text-[9px] tracking-wider text-cyan-400">
-                        JARVIS
-                      </span>
-                    </div>
+                {/* Minimal touch feedback ring ONLY when actively touching/dragging - zero overlapping virtual UI badges */}
+                {isDraggingCursor && (
+                  <div
+                    className="absolute pointer-events-none transition-transform duration-75 ease-out select-none z-30"
+                    style={{
+                      left: `${cursorPos.x}%`,
+                      top: `${cursorPos.y}%`,
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  >
+                    <div className="h-5 w-5 rounded-full border border-cyan-400/80 bg-cyan-400/20 shadow-[0_0_10px_rgba(34,211,238,0.7)]" />
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Quick Touch Controls Bar in Home View */}
