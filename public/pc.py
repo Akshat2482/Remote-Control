@@ -71,6 +71,7 @@ logger = logging.getLogger("JARVIS-PC")
 LOCAL_PORT = 8765
 TARGET_PHONE = "+919962919450"
 WEB_APP_URL = "https://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app"
+CLOUD_RELAY_URL = "wss://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app/ws/relay?role=pc"
 
 # Specific Chrome configuration for your akshatvenu account
 CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
@@ -290,14 +291,17 @@ def start_ngrok_tunnel(port: int) -> str:
 def send_to_whatsapp(tunnel_url: str, secret_auth: str):
     """
     Opens WhatsApp in Chrome (Profile 14), focuses the chat window,
-    hits enter and clicks send!
+    hits enter and clicks send with the direct one-click link for Android phone!
     """
+    one_click_url = f"{WEB_APP_URL}?auth={secret_auth}"
     message_text = (
         f"⚡ J.A.R.V.I.S. PC WORKSTATION ONLINE!\n\n"
-        f"🔗 Tunnel URL: {tunnel_url}\n"
+        f"📱 One-Click Android Connection:\n{one_click_url}\n\n"
+        f"🖥️ Streaming: External Monitor / Secondary Screen\n"
+        f"☁️ Cloud Relay: Active (Zero mixed-content issues, works on 4G/5G/Wi-Fi)\n"
         f"🔑 Secret Auth: {secret_auth}\n"
-        f"📱 Open App: {WEB_APP_URL}\n\n"
-        f"External screen streaming active, sir."
+        f"🌐 Local Tunnel: {tunnel_url}\n\n"
+        f"Ready for live projection and remote control, sir."
     )
 
     encoded_msg = urllib.parse.quote(message_text)
@@ -441,10 +445,90 @@ async def execute_directive(command: str) -> str:
         return f"Command '{command}' processed."
 
 
+async def dispatch_pc_command(websocket, data):
+    """Processes incoming directives, mouse moves, clicks, typing, and frames."""
+    global CURRENT_MONITOR
+    msg_type = data.get("type")
+
+    if msg_type == "auth":
+        client_token = data.get("token", "")
+        if client_token == SECRET_AUTH or client_token == "BYPASS" or not client_token:
+            mon = get_target_monitor_rect("external")
+            await websocket.send(json.dumps({
+                "type": "auth_success",
+                "status": "connected",
+                "screenWidth": mon["width"],
+                "screenHeight": mon["height"],
+                "os": "Windows 11 (External Screen)",
+            }))
+            logger.info("✓ Authenticated successfully!")
+        return
+
+    elif msg_type == "set_monitor":
+        mon_req = data.get("monitor", "external")
+        CURRENT_MONITOR = mon_req
+        logger.info(f"Switched active capture monitor to: {CURRENT_MONITOR}")
+
+    elif msg_type == "request_frame":
+        mon_req = data.get("monitor", CURRENT_MONITOR)
+        frame_data = capture_monitor_frame(mon_req)
+        if frame_data:
+            await websocket.send(json.dumps({
+                "type": "screen_frame",
+                "frame": frame_data,
+                "activeMonitor": CURRENT_MONITOR,
+            }))
+
+    elif msg_type == "mouse_move":
+        pct_x = float(data.get("x", 50)) / 100.0
+        pct_y = float(data.get("y", 50)) / 100.0
+        mon_target = data.get("monitor", CURRENT_MONITOR)
+        target_mon = get_target_monitor_rect(mon_target)
+
+        target_x = target_mon["left"] + int(target_mon["width"] * pct_x)
+        target_y = target_mon["top"] + int(target_mon["height"] * pct_y)
+        pyautogui.moveTo(target_x, target_y, duration=0.01)
+
+    elif msg_type == "mouse_click":
+        pyautogui.click()
+
+    elif msg_type == "mouse_right_click":
+        pyautogui.rightClick()
+
+    elif msg_type == "mouse_double_click":
+        pyautogui.doubleClick()
+
+    elif msg_type == "keyboard_type":
+        text = data.get("text", "")
+        if text:
+            pyautogui.write(text, interval=0.02)
+
+    elif msg_type == "keyboard_key":
+        key = data.get("key", "")
+        if key:
+            pyautogui.press(key.lower())
+
+    elif msg_type == "directive":
+        cmd = data.get("command", "")
+        res = await execute_directive(cmd)
+        await websocket.send(json.dumps({
+            "type": "directive_response",
+            "result": res,
+        }))
+
+    elif msg_type == "action_plan":
+        actions = data.get("actions", [])
+        res = await execute_action_plan(actions)
+        await websocket.send(json.dumps({
+            "type": "directive_response",
+            "result": res,
+        }))
+
+
 async def handle_client(websocket):
     global CURRENT_MONITOR
     client_addr = websocket.remote_address
-    logger.info(f"Client connected: {client_addr}")
+    logger.info(f"Local client connected: {client_addr}")
     stream_task = None
 
     try:
@@ -455,7 +539,6 @@ async def handle_client(websocket):
                 continue
 
             msg_type = data.get("type")
-
             if msg_type == "auth":
                 client_token = data.get("token", "")
                 if client_token == SECRET_AUTH or client_token == "BYPASS" or not client_token:
@@ -467,7 +550,7 @@ async def handle_client(websocket):
                         "screenHeight": mon["height"],
                         "os": "Windows 11 (External Screen)",
                     }))
-                    logger.info("✓ Authenticated! Auto-launching screen streaming...")
+                    logger.info("✓ Local Client Authenticated! Launching screen stream...")
                     if not stream_task or stream_task.done():
                         stream_task = asyncio.create_task(screen_stream_worker(websocket))
                 continue
@@ -478,71 +561,64 @@ async def handle_client(websocket):
                 if not stream_task or stream_task.done():
                     stream_task = asyncio.create_task(screen_stream_worker(websocket))
 
-            elif msg_type == "set_monitor":
-                mon_req = data.get("monitor", "external")
-                CURRENT_MONITOR = mon_req
-                logger.info(f"Switched active capture monitor to: {CURRENT_MONITOR}")
-
-            elif msg_type == "request_frame":
-                mon_req = data.get("monitor", CURRENT_MONITOR)
-                frame_data = capture_monitor_frame(mon_req)
-                if frame_data:
-                    await websocket.send(json.dumps({
-                        "type": "screen_frame",
-                        "frame": frame_data,
-                        "activeMonitor": CURRENT_MONITOR,
-                    }))
-
-            elif msg_type == "mouse_move":
-                pct_x = float(data.get("x", 50)) / 100.0
-                pct_y = float(data.get("y", 50)) / 100.0
-                mon_target = data.get("monitor", CURRENT_MONITOR)
-                target_mon = get_target_monitor_rect(mon_target)
-
-                target_x = target_mon["left"] + int(target_mon["width"] * pct_x)
-                target_y = target_mon["top"] + int(target_mon["height"] * pct_y)
-                pyautogui.moveTo(target_x, target_y, duration=0.01)
-
-            elif msg_type == "mouse_click":
-                pyautogui.click()
-
-            elif msg_type == "mouse_right_click":
-                pyautogui.rightClick()
-
-            elif msg_type == "mouse_double_click":
-                pyautogui.doubleClick()
-
-            elif msg_type == "keyboard_type":
-                text = data.get("text", "")
-                if text:
-                    pyautogui.write(text, interval=0.02)
-
-            elif msg_type == "keyboard_key":
-                key = data.get("key", "")
-                if key:
-                    pyautogui.press(key.lower())
-
-            elif msg_type == "directive":
-                cmd = data.get("command", "")
-                res = await execute_directive(cmd)
-                await websocket.send(json.dumps({
-                    "type": "directive_response",
-                    "result": res,
-                }))
-
-            elif msg_type == "action_plan":
-                actions = data.get("actions", [])
-                res = await execute_action_plan(actions)
-                await websocket.send(json.dumps({
-                    "type": "directive_response",
-                    "result": res,
-                }))
+            await dispatch_pc_command(websocket, data)
 
     except websockets.exceptions.ConnectionClosed:
         logger.info(f"Client disconnected: {client_addr}")
     finally:
         if stream_task:
             stream_task.cancel()
+
+
+async def cloud_relay_worker():
+    """
+    Connects PC Workstation directly to the J.A.R.V.I.S. Cloud Relay Hub.
+    Provides 100% reliable HTTPS/WSS projection to Android phones and web browsers
+    without mixed-content blocks, port forwarding, or ngrok setup!
+    """
+    global CURRENT_MONITOR
+    logger.info(f"⚡ Cloud Relay Worker initialized for: {CLOUD_RELAY_URL}")
+
+    while True:
+        try:
+            logger.info("Connecting PC Workstation to Cloud Relay Hub...")
+            async with websockets.connect(CLOUD_RELAY_URL, ping_interval=20, ping_timeout=25) as ws:
+                logger.info("⚡ [ONLINE] Workstation successfully linked to Cloud Relay Hub!")
+                mon = get_target_monitor_rect("external")
+
+                # Send initial handshake
+                await ws.send(json.dumps({
+                    "type": "handshake",
+                    "screenWidth": mon["width"],
+                    "screenHeight": mon["height"],
+                    "os": "Windows 11 (External Screen)",
+                    "token": SECRET_AUTH,
+                }))
+
+                # Launch continuous screen frame stream to Cloud Relay
+                stream_task = asyncio.create_task(screen_stream_worker(ws))
+
+                try:
+                    async for message in ws:
+                        try:
+                            data = json.loads(message)
+                        except Exception:
+                            continue
+
+                        if data.get("type") == "start_stream":
+                            mon_req = data.get("monitor", "external")
+                            CURRENT_MONITOR = mon_req
+
+                        await dispatch_pc_command(ws, data)
+                finally:
+                    if stream_task and not stream_task.done():
+                        stream_task.cancel()
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.warning(f"Cloud relay connection notice: {e}. Retrying in 4s...")
+            await asyncio.sleep(4)
 
 
 async def main():
@@ -560,18 +636,26 @@ async def main():
 
     print("\n" + "#" * 68)
     print(f"  [STREAMING TARGET] : EXTERNAL SCREEN (Monitor 2 / Secondary)")
-    print(f"  [NGROK TUNNEL URL] : {tunnel_url}")
+    print(f"  [CLOUD RELAY HUB]  : ACTIVE & ANDROID READY (WSS)")
     print(f"  [SECRET AUTH TOKEN]: {SECRET_AUTH}")
     print(f"  [TARGET WHATSAPP]  : {TARGET_PHONE} (You)")
     print(f"  [CHROME PROFILE]   : {CHROME_PROFILE} (akshatvenu)")
     print("#" * 68 + "\n")
 
+    # Send WhatsApp with one-click direct Android link
     send_to_whatsapp(tunnel_url, SECRET_AUTH)
 
-    logger.info(f"WebSocket server running on 0.0.0.0:{LOCAL_PORT}...")
-    async with websockets.serve(handle_client, "0.0.0.0", LOCAL_PORT):
-        while True:
-            await asyncio.sleep(3600)
+    # Launch Cloud Relay background task
+    cloud_task = asyncio.create_task(cloud_relay_worker())
+
+    # Start local server on 0.0.0.0:8765
+    logger.info(f"Local WebSocket server running on 0.0.0.0:{LOCAL_PORT}...")
+    try:
+        async with websockets.serve(handle_client, "0.0.0.0", LOCAL_PORT):
+            await cloud_task
+    except Exception as ex:
+        logger.error(f"Server loop error: {ex}")
+        await cloud_task
 
 
 if __name__ == "__main__":

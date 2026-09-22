@@ -66,7 +66,7 @@ jobs:
     }
 }
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         google()
         mavenCentral()
@@ -307,10 +307,11 @@ dependencies {
 
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_arc_reactor"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher"
+        android:roundIcon="@drawable/ic_arc_reactor"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.JARVIS">
 
         <activity
@@ -1001,6 +1002,7 @@ val Typography = Typography(
     <style name="Theme.JARVIS" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@color/dark_space</item>
         <item name="android:navigationBarColor">@color/dark_space</item>
+        <item name="android:windowBackground">@color/dark_space</item>
     </style>
 </resources>
 `,

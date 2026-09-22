@@ -209,12 +209,18 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
     }
   };
 
+  const simCounter = useRef(0);
+  const genUniqueSimId = (sender: "user" | "jarvis") => {
+    simCounter.current += 1;
+    return `${sender}-${Date.now()}-${simCounter.current}-${Math.random().toString(36).substring(2, 7)}`;
+  };
+
   const executeDirective = async (queryText: string, isSpoken: boolean = false) => {
     if (!queryText.trim()) return;
     sfx.playChirp();
 
     const userMsg: JarvisChatMessage = {
-      id: Date.now().toString(),
+      id: genUniqueSimId("user"),
       sender: "user",
       text: queryText,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -273,7 +279,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
       const replyText = data.text || "Directives synchronized, sir.";
 
       const jarvisMsg: JarvisChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: genUniqueSimId("jarvis"),
         sender: "jarvis",
         text: replyText,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -294,7 +300,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
       setMessages((prev) => [
         ...prev,
         {
-          id: (Date.now() + 1).toString(),
+          id: genUniqueSimId("jarvis"),
           sender: "jarvis",
           text: fallbackReply,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -405,8 +411,8 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
 
               {/* Chat & Response Stream Bubble */}
               <div className="my-2 max-h-36 overflow-y-auto rounded-xl border border-cyan-900/40 bg-slate-900/70 p-2.5 font-mono text-xs">
-                {messages.slice(-2).map((msg) => (
-                  <div key={msg.id} className="mb-2 last:mb-0">
+                {messages.slice(-2).map((msg, idx) => (
+                  <div key={msg.id ? `${msg.id}-${idx}` : `sim-msg-${idx}`} className="mb-2 last:mb-0">
                     <div className="flex items-center justify-between text-[9px] text-cyan-500">
                       <span className="font-bold">
                         {msg.sender === "user" ? "STARK (SIR)" : "J.A.R.V.I.S."}

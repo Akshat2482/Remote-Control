@@ -203,6 +203,10 @@ async function startServer() {
     const urlParams = new URL(req.url || "", `http://${req.headers.host}`).searchParams;
     const role = urlParams.get("role") || "phone"; // 'pc' or 'phone'
 
+    ws.on("error", (err) => {
+      console.warn(`WebSocket error (${role}):`, err.message);
+    });
+
     if (role === "pc") {
       console.log("⚡ PC Workstation connected to Cloud Relay Hub!");
       pcClientSocket = ws;

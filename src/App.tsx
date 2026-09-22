@@ -46,12 +46,13 @@ export default function App() {
   const [isLandscapeRotated, setIsLandscapeRotated] = useState(false);
 
   // Connection & Tunnel State
-  const [tunnelUrl, setTunnelUrl] = useState("wss://0.tcp.ngrok.io:12345");
+  const [tunnelUrl, setTunnelUrl] = useState("");
   const [secretAuth, setSecretAuth] = useState("JARVIS-7749");
   const [targetPhone] = useState("+91 99629 19450 (You)");
-  const [isConnected, setIsConnected] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [osName] = useState("Windows 11");
+  const [relayNotice, setRelayNotice] = useState<string | null>(null);
+  const [osName, setOsName] = useState("Windows 11");
 
   // UI Modals & Keyboard
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -80,6 +81,7 @@ export default function App() {
   // Touchpad Mouse Pointer on Screen
   const [cursorPos, setCursorPos] = useState({ x: 50, y: 50 });
   const [isDraggingCursor, setIsDraggingCursor] = useState(false);
+  const pointerStartPos = useRef({ x: 0, y: 0, time: 0 });
   const [activeFocusTarget, setActiveFocusTarget] = useState<string | null>(null);
   const screenContainerRef = useRef<HTMLDivElement>(null);
   const landscapeContainerRef = useRef<HTMLDivElement>(null);
@@ -100,29 +102,61 @@ export default function App() {
     { id: "all", name: "All Displays", width: 3840, height: 1080, isExternal: false },
   ]);
 
-  // Connect to Tunnel / Local WebSocket
-  const handleConnectTunnel = (urlToUse?: string) => {
-    const url = (urlToUse || tunnelUrl).trim();
-    if (!url) return;
+  // Connect to Tunnel / Cloud Relay WebSocket
+  const handleConnectTunnel = (urlToUse?: string, authToken?: string) => {
+    let url = (urlToUse || tunnelUrl).trim();
+    const token = authToken || secretAuth;
 
+    // Secure fallback: if on HTTPS and url starts with insecure ws://, upgrade to Cloud Relay
+    if (window.location.protocol === "https:" && url.startsWith("ws://")) {
+      const secureRelay = `wss://${window.location.host}/ws/relay?role=phone`;
+      setRelayNotice("Switched to Secure Cloud Relay (WSS) to prevent Android mixed-content blocking.");
+      url = secureRelay;
+    }
+
+    if (!url) {
+      const defaultProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      url = `${defaultProtocol}//${window.location.host}/ws/relay?role=phone`;
+    }
+
+    setTunnelUrl(url);
     setIsConnecting(true);
+
     try {
-      if (socketRef.current) socketRef.current.close();
+      if (socketRef.current) {
+        try {
+          socketRef.current.close();
+        } catch {
+          // ignore close error
+        }
+      }
+
       const ws = new WebSocket(url);
 
       ws.onopen = () => {
         setIsConnecting(false);
         setIsConnected(true);
-        ws.send(JSON.stringify({ type: "auth", token: secretAuth }));
+        ws.send(JSON.stringify({ type: "auth", token }));
         ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
         ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
-        addJarvisMessage(`Connected to workstation via ${url}. External screen projection active.`);
+        addJarvisMessage(`Connected to workstation via ${url.includes("ws/relay") ? "Secure Cloud Relay" : url}. External screen streaming active.`);
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "screen_frame") {
+          if (data.type === "pc_status") {
+            if (data.status === "online") {
+              setIsConnected(true);
+              ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
+              ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
+              addJarvisMessage("Workstation is ONLINE via Cloud Relay. Streaming external screen.");
+            } else {
+              setIsConnected(false);
+              addJarvisMessage("Cloud Relay active. Waiting for PC workstation (run 'python pc.py' on PC)...");
+            }
+          } else if (data.type === "screen_frame") {
+            setIsConnected(true);
             setLiveScreenFrame(data.frame);
             if (data.monitors && Array.isArray(data.monitors)) {
               setAvailableMonitors(data.monitors);
@@ -138,6 +172,7 @@ export default function App() {
             addJarvisMessage(`[PC] ${data.result}`);
           } else if (data.type === "auth_success") {
             setIsConnected(true);
+            if (data.os) setOsName(data.os);
             addJarvisMessage("Workstation authentication accepted. Streaming external screen.");
             ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
           }
@@ -146,14 +181,56 @@ export default function App() {
         }
       };
 
-      ws.onerror = () => setIsConnecting(false);
-      ws.onclose = () => setIsConnecting(false);
+      ws.onerror = () => {
+        setIsConnecting(false);
+      };
+
+      ws.onclose = () => {
+        setIsConnecting(false);
+        setIsConnected(false);
+      };
 
       socketRef.current = ws;
-    } catch {
+    } catch (err) {
       setIsConnecting(false);
+      setIsConnected(false);
+      setRelayNotice(`Connection attempt notice: ${String(err)}`);
     }
   };
+
+  // Automatically connect on mount & support one-click WhatsApp params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authParam = params.get("auth");
+    const tunnelParam = params.get("tunnel");
+
+    const token = authParam || secretAuth;
+    if (authParam) setSecretAuth(authParam);
+
+    const defaultProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const defaultRelayUrl = `${defaultProtocol}//${window.location.host}/ws/relay?role=phone`;
+
+    const targetUrl = tunnelParam || defaultRelayUrl;
+    handleConnectTunnel(targetUrl, token);
+
+    // Keepalive / frame requester interval if connected
+    const keepaliveInterval = setInterval(() => {
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
+      }
+    }, 4000);
+
+    return () => {
+      clearInterval(keepaliveInterval);
+      if (socketRef.current) {
+        try {
+          socketRef.current.close();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
 
   const handleSelectMonitor = (monId: string) => {
     setSelectedMonitor(monId);
@@ -163,13 +240,19 @@ export default function App() {
     }
   };
 
+  let messageCounter = useRef(0);
+  const generateUniqueMsgId = (sender: "jarvis" | "user") => {
+    messageCounter.current += 1;
+    return `${sender}-${Date.now()}-${messageCounter.current}-${Math.random().toString(36).substring(2, 8)}`;
+  };
+
   const addJarvisMessage = (text: string, plan?: ActionStep[]) => {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     setChatMessages((prev) => [
       ...prev,
       {
-        id: String(Date.now()),
+        id: generateUniqueMsgId("jarvis"),
         sender: "jarvis",
         text,
         time: timeStr,
@@ -184,7 +267,7 @@ export default function App() {
     setChatMessages((prev) => [
       ...prev,
       {
-        id: String(Date.now()),
+        id: generateUniqueMsgId("user"),
         sender: "user",
         text,
         time: timeStr,
@@ -304,6 +387,36 @@ export default function App() {
     }
   };
 
+  const handlePointerDown = (
+    e: React.PointerEvent<HTMLDivElement>,
+    containerRef: React.RefObject<HTMLDivElement | null>
+  ) => {
+    setIsDraggingCursor(true);
+    pointerStartPos.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+    try {
+      containerRef.current?.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    handlePointerInteraction(e, containerRef);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    setIsDraggingCursor(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    const dx = Math.abs(e.clientX - pointerStartPos.current.x);
+    const dy = Math.abs(e.clientY - pointerStartPos.current.y);
+    const dt = Date.now() - pointerStartPos.current.time;
+    // If touched and released quickly with minimal movement, treat as a screen click
+    if (dx < 12 && dy < 12 && dt < 400) {
+      handleScreenClick();
+    }
+  };
+
   const handleScreenClick = () => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ type: "mouse_click" }));
@@ -313,6 +426,20 @@ export default function App() {
   const handleRightClick = () => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ type: "mouse_right_click" }));
+    }
+  };
+
+  const handleDoubleClick = () => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "mouse_double_click" }));
+    }
+  };
+
+  const handleScroll = (direction: "up" | "down") => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(
+        JSON.stringify({ type: "keyboard_key", key: direction === "up" ? "pageup" : "pagedown" })
+      );
     }
   };
 
@@ -376,7 +503,7 @@ export default function App() {
             </div>
 
             {/* Floating Controls in Landscape */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 onClick={() => setShowVirtualKeyboard(!showVirtualKeyboard)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all active:scale-95 ${
@@ -390,7 +517,7 @@ export default function App() {
               </button>
               <button
                 onClick={handleScreenClick}
-                className="px-2.5 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-200 active:scale-95 transition-all"
+                className="px-2.5 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/40 hover:bg-cyan-500/30 text-xs font-semibold text-cyan-200 active:scale-95 transition-all"
               >
                 Left Click
               </button>
@@ -399,6 +526,26 @@ export default function App() {
                 className="px-2.5 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-200 active:scale-95 transition-all"
               >
                 Right Click
+              </button>
+              <button
+                onClick={handleDoubleClick}
+                className="px-2.5 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-200 active:scale-95 transition-all"
+              >
+                2x Click
+              </button>
+              <button
+                onClick={() => handleScroll("up")}
+                className="px-2.5 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-200 active:scale-95 transition-all"
+                title="Scroll Up (Page Up)"
+              >
+                ▲ Scroll
+              </button>
+              <button
+                onClick={() => handleScroll("down")}
+                className="px-2.5 py-1.5 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-200 active:scale-95 transition-all"
+                title="Scroll Down (Page Down)"
+              >
+                ▼ Scroll
               </button>
             </div>
           </div>
@@ -470,18 +617,11 @@ export default function App() {
 
             <div
               ref={landscapeContainerRef}
-              onPointerDown={(e) => {
-                setIsDraggingCursor(true);
-                landscapeContainerRef.current?.setPointerCapture(e.pointerId);
-                handlePointerInteraction(e, landscapeContainerRef);
-              }}
+              onPointerDown={(e) => handlePointerDown(e, landscapeContainerRef)}
               onPointerMove={(e) => {
                 if (isDraggingCursor) handlePointerInteraction(e, landscapeContainerRef);
               }}
-              onPointerUp={() => {
-                setIsDraggingCursor(false);
-                handleScreenClick();
-              }}
+              onPointerUp={handlePointerUp}
               className="relative flex-1 w-full min-h-[420px] sm:min-h-[520px] rounded-[23px] overflow-hidden bg-[#070f22] select-none cursor-crosshair touch-none"
               style={{
                 backgroundImage: `radial-gradient(circle at 50% 50%, #1e3a8a 0%, #0c1838 55%, #030712 100%)`,
@@ -574,9 +714,21 @@ export default function App() {
                 </h1>
                 <p className="text-xs text-slate-300 font-medium">Connected to your PC</p>
                 <div className="flex items-center gap-2 mt-0.5 text-[11px] font-medium">
-                  <span className="flex items-center gap-1 text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-                    Online
+                  <span
+                    className={`flex items-center gap-1 ${
+                      isConnected ? "text-emerald-400" : isConnecting ? "text-amber-400" : "text-cyan-400"
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        isConnected
+                          ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]"
+                          : isConnecting
+                          ? "bg-amber-400 animate-ping"
+                          : "bg-cyan-500 animate-pulse shadow-[0_0_8px_#06b6d4]"
+                      }`}
+                    />
+                    {isConnected ? "Online (Cloud Relay)" : isConnecting ? "Connecting..." : "Awaiting PC Feed"}
                   </span>
                   <span className="text-slate-600">|</span>
                   <span className="text-slate-300 font-normal">{osName}</span>
@@ -588,6 +740,13 @@ export default function App() {
               <ChevronRight className="h-5 w-5" />
             </div>
           </div>
+
+          {relayNotice && (
+            <div className="mb-2 px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-[11px] text-cyan-200 flex items-center justify-between">
+              <span>{relayNotice}</span>
+              <button onClick={() => setRelayNotice(null)} className="text-slate-400 hover:text-white ml-2">✕</button>
+            </div>
+          )}
 
           {/* NAVIGATION SEGMENTED CONTROL: Home | PC (Clicking PC switches to Landscape Remote) */}
           <div className="flex items-center justify-around border-b border-cyan-950/80 mb-3 text-sm font-medium">
@@ -661,18 +820,11 @@ export default function App() {
 
               <div
                 ref={screenContainerRef}
-                onPointerDown={(e) => {
-                  setIsDraggingCursor(true);
-                  screenContainerRef.current?.setPointerCapture(e.pointerId);
-                  handlePointerInteraction(e, screenContainerRef);
-                }}
+                onPointerDown={(e) => handlePointerDown(e, screenContainerRef)}
                 onPointerMove={(e) => {
                   if (isDraggingCursor) handlePointerInteraction(e, screenContainerRef);
                 }}
-                onPointerUp={() => {
-                  setIsDraggingCursor(false);
-                  handleScreenClick();
-                }}
+                onPointerUp={handlePointerUp}
                 className="relative flex-1 w-full h-full cursor-crosshair touch-none select-none overflow-hidden"
                 style={{
                   backgroundImage: `radial-gradient(circle at 50% 60%, #1e3a8a 0%, #0c1838 50%, #030712 100%)`,
@@ -697,7 +849,7 @@ export default function App() {
                       Waiting for Workstation Screen Feed...
                     </p>
                     <p className="text-[10px] text-slate-400 mt-0.5 max-w-xs">
-                      Make sure <code className="text-cyan-300 font-mono">python pc.py</code> is running. Your live screen will stream cleanly here with no artificial overlays.
+                      Make sure <code className="text-cyan-300 font-mono">python pc.py</code> is running on your PC. It will automatically connect to this Cloud Relay!
                     </p>
                   </div>
                 )}
@@ -723,14 +875,64 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Landscape Switch Button on top right of screen */}
-              <button
-                onClick={() => setActiveTab("pc")}
-                className="absolute bottom-7 right-2 z-20 p-1.5 rounded-xl bg-black/60 border border-cyan-500/40 text-cyan-300 hover:text-white transition-all active:scale-95 shadow-lg"
-                title="Switch to Full Landscape Remote Mode"
-              >
-                <Maximize2 className="h-3.5 w-3.5" />
-              </button>
+              {/* Quick Touch Controls Bar in Home View */}
+              <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-950/90 border-t border-white/10 z-20">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleScreenClick}
+                    className="px-2 py-1 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-[11px] font-semibold text-cyan-200 active:scale-95 transition-all"
+                  >
+                    Left Click
+                  </button>
+                  <button
+                    onClick={handleRightClick}
+                    className="px-2 py-1 rounded-lg bg-white/[0.06] border border-white/10 text-[11px] font-semibold text-slate-200 active:scale-95 transition-all"
+                  >
+                    Right Click
+                  </button>
+                  <button
+                    onClick={handleDoubleClick}
+                    className="px-2 py-1 rounded-lg bg-white/[0.06] border border-white/10 text-[11px] font-semibold text-slate-200 active:scale-95 transition-all"
+                  >
+                    2x
+                  </button>
+                  <button
+                    onClick={() => setShowVirtualKeyboard(!showVirtualKeyboard)}
+                    className={`px-2 py-1 rounded-lg border text-[11px] font-semibold flex items-center gap-1 active:scale-95 transition-all ${
+                      showVirtualKeyboard
+                        ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.6)]"
+                        : "bg-white/[0.06] border-white/10 text-slate-200"
+                    }`}
+                  >
+                    <KeyboardIcon className="h-3 w-3" />
+                    <span>Keys</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleScroll("up")}
+                    className="px-1.5 py-1 rounded-lg bg-white/[0.06] border border-white/10 text-[11px] text-slate-300 hover:text-white active:scale-95"
+                    title="Scroll Up"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    onClick={() => handleScroll("down")}
+                    className="px-1.5 py-1 rounded-lg bg-white/[0.06] border border-white/10 text-[11px] text-slate-300 hover:text-white active:scale-95"
+                    title="Scroll Down"
+                  >
+                    ▼
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("pc")}
+                    className="p-1.5 rounded-lg bg-black/60 border border-cyan-500/40 text-cyan-300 hover:text-white transition-all active:scale-95 shadow-lg ml-1"
+                    title="Full Landscape Remote Mode"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -753,9 +955,9 @@ export default function App() {
           {/* ASSISTANT / CHAT SECTION (Refined Liquid Glass with Framer Motion animations) */}
           <div className="flex-1 flex flex-col space-y-2.5 mb-3">
             <AnimatePresence initial={false}>
-              {chatMessages.slice(-3).map((msg) => (
+              {chatMessages.slice(-3).map((msg, idx) => (
                 <motion.div
-                  key={msg.id}
+                  key={msg.id ? `${msg.id}-${idx}` : `msg-${idx}`}
                   initial={{ opacity: 0, y: 14, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.98 }}
