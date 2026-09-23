@@ -264,26 +264,26 @@ export const VocalVisualizer: React.FC<VocalVisualizerProps> = ({
 
   return (
     <div
-      className={`relative rounded-2xl border-2 border-cyan-500/80 bg-black p-3 overflow-hidden shadow-[0_0_35px_rgba(217,70,239,0.25)] transition-all duration-300 animate-in fade-in zoom-in-95 ${className}`}
+      className={`relative rounded-2xl liquid-glass-card p-3 overflow-hidden shadow-lg transition-all duration-300 animate-in fade-in zoom-in-95 ${className}`}
     >
-      {/* Background Stark Glow */}
-      <div className="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_center,rgba(217,70,239,0.35),rgba(0,229,255,0.2),transparent_75%)] pointer-events-none" />
+      {/* Background Subtle Glow */}
+      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,rgba(6,182,212,0.4),transparent_75%)] pointer-events-none" />
 
       {/* Header Bar */}
       <div className="relative z-10 flex items-center justify-between text-[11px] font-mono mb-2">
         <div className="flex items-center gap-2">
           <div className="relative flex items-center justify-center h-4 w-4">
-            <Sparkles className="h-4 w-4 text-fuchsia-400 animate-spin" />
+            <Sparkles className="h-4 w-4 text-cyan-600 animate-spin" />
             <span className="absolute h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
           </div>
-          <span className="font-black bg-gradient-to-r from-emerald-400 via-cyan-300 to-fuchsia-400 bg-clip-text text-transparent tracking-wider">
+          <span className="font-extrabold text-slate-900 tracking-wider">
             JARVIS VOCAL SPECTRUM
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 text-[10px] text-fuchsia-300 font-bold bg-fuchsia-950/70 border border-fuchsia-700/80 px-2 py-0.5 rounded-md animate-pulse">
-            <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-400" />
+          <span className="flex items-center gap-1 text-[10px] text-cyan-900 font-bold bg-cyan-100/90 border border-cyan-300/80 px-2 py-0.5 rounded-lg shadow-xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse" />
             {decibels > 0 ? `${decibels} dB • LIVE` : "LISTENING"}
           </span>
 
@@ -293,7 +293,7 @@ export const VocalVisualizer: React.FC<VocalVisualizerProps> = ({
                 triggerHaptic("tap");
                 onStopListening();
               }}
-              className="h-5 w-5 rounded-md bg-slate-900 border border-slate-700 text-slate-400 hover:text-white hover:border-cyan-400 flex items-center justify-center transition-colors"
+              className="h-5 w-5 rounded-lg liquid-glass-pill text-slate-500 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
               title="Close Visualizer"
             >
               <X className="h-3 w-3" />
@@ -302,8 +302,8 @@ export const VocalVisualizer: React.FC<VocalVisualizerProps> = ({
         </div>
       </div>
 
-      {/* Pure Black Neon Canvas Frame (Styled directly after uploaded audio wave) */}
-      <div className="relative rounded-xl border border-slate-800 bg-[#04050a] p-2 shadow-[inset_0_0_30px_rgba(0,0,0,0.9)]">
+      {/* Neon Waveform Canvas Frame */}
+      <div className="relative rounded-xl border border-slate-700 bg-slate-950 p-2 shadow-inner">
         <canvas
           ref={canvasRef}
           width={360}
@@ -313,21 +313,21 @@ export const VocalVisualizer: React.FC<VocalVisualizerProps> = ({
 
         {/* Real-time Frequency Spectrum Ticks */}
         <div className="flex justify-between text-[8px] font-mono mt-1 px-1">
-          <span className="text-emerald-400/80">60 Hz</span>
-          <span className="text-cyan-400/80">450 Hz</span>
-          <span className="text-cyan-300/80">1.5 kHz</span>
-          <span className="text-fuchsia-400/80">4.2 kHz</span>
-          <span className="text-purple-400/80">12 kHz</span>
+          <span className="text-emerald-400">60 Hz</span>
+          <span className="text-cyan-400">450 Hz</span>
+          <span className="text-cyan-300">1.5 kHz</span>
+          <span className="text-fuchsia-400">4.2 kHz</span>
+          <span className="text-purple-400">12 kHz</span>
         </div>
       </div>
 
       {/* Bottom Telemetry & Worldwide Relay Indicator */}
-      <div className="relative z-10 mt-2 flex items-center justify-between text-[10px] font-mono text-slate-300">
-        <span className="flex items-center gap-1.5 text-cyan-300">
-          <Mic className="h-3.5 w-3.5 text-fuchsia-400 animate-pulse" />
-          <span className="font-semibold">Transcribing vocal directive...</span>
+      <div className="relative z-10 mt-2 flex items-center justify-between text-[10px] font-mono text-slate-700">
+        <span className="flex items-center gap-1.5 text-cyan-800">
+          <Mic className="h-3.5 w-3.5 text-cyan-600 animate-pulse" />
+          <span className="font-bold">Transcribing vocal directive...</span>
         </span>
-        <span className="flex items-center gap-1 text-emerald-400 text-[9px] bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded">
+        <span className="flex items-center gap-1 text-emerald-800 text-[9px] bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded-md font-semibold">
           <Globe className="h-2.5 w-2.5" />
           <span>Global 5G Relay Active</span>
         </span>

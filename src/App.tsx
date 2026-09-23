@@ -17,7 +17,6 @@ import {
   MessageSquare,
   Gamepad2,
   Code2,
-  Search,
   CheckCircle2,
   Copy,
   Download,
@@ -45,6 +44,7 @@ import {
 } from "lucide-react";
 import { VocalVisualizer } from "./components/VocalVisualizer";
 import { VirtualKeyboard } from "./components/VirtualKeyboard";
+import { LiquidGlassCanvas } from "./components/LiquidGlassCanvas";
 
 interface ActionStep {
   type: string;
@@ -100,6 +100,12 @@ export default function App() {
   const screenContainerRef = useRef<HTMLDivElement>(null);
   const landscapeContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll chat so user always sees their reply and JARVIS reply
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
 
   // Active projection window state
   const [activeWindow, setActiveWindow] = useState<"outlook" | "chrome" | "vscode" | "claude">("outlook");
@@ -646,33 +652,42 @@ export default function App() {
   };
 
   return (
-    <div className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] bg-[#020611] text-white flex flex-col items-center justify-start font-sans select-none overflow-hidden antialiased">
-      {/* High-End Liquid Glass Background Ambient Glows & Specular Gradients */}
+    <div className="h-[100dvh] min-h-[100dvh] max-h-[100dvh] bg-[#eaf1f8]/60 text-slate-900 flex flex-col items-center justify-start font-sans select-none overflow-hidden antialiased relative">
+      {/* Background Liquid Glass Wallpaper */}
+      <img
+        src="/liquid_glass_bg.jpg"
+        alt="Liquid Glass Background"
+        className="fixed inset-0 w-full h-full object-cover z-0 pointer-events-none select-none opacity-45"
+        referrerPolicy="no-referrer"
+      />
+
+      {/* WebGL GPU Liquid Glass Refraction & Chromatic Dispersion Canvas */}
+      <LiquidGlassCanvas className="fixed inset-0 pointer-events-none z-0 opacity-80" />
+
+      {/* Subtle Luminous Ambient Sheen */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute top-[-20%] left-[-15%] w-[85%] h-[55%] rounded-full bg-gradient-to-br from-cyan-500/25 via-blue-600/15 to-transparent blur-[130px] animate-liquid-slow" />
-        <div className="absolute top-[25%] right-[-20%] w-[75%] h-[60%] rounded-full bg-gradient-to-tl from-indigo-500/20 via-cyan-500/15 to-transparent blur-[140px] animate-liquid-fast" />
-        <div className="absolute bottom-[-15%] left-[10%] w-[80%] h-[55%] rounded-full bg-gradient-to-tr from-blue-700/20 via-teal-500/15 to-transparent blur-[130px] animate-liquid-slow" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-transparent via-[#020611]/75 to-[#01040a]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[50%] rounded-full bg-cyan-400/20 blur-[100px] animate-liquid-slow" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[70%] h-[50%] rounded-full bg-blue-400/15 blur-[120px] animate-liquid-fast" />
       </div>
 
       {/* VIEW 1: LANDSCAPE FULL PC SCREEN REMOTE CONTROL (When "PC" Tab is active) */}
       {activeTab === "pc" ? (
         <div className="w-full h-[100dvh] max-h-[100dvh] flex flex-col relative z-10 px-2 sm:px-2.5 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] pt-[max(env(safe-area-inset-top,0px),1.75rem)] max-w-7xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
           {/* Top Landscape Glass Header */}
-          <div className="flex items-center justify-between px-2.5 py-1.5 mb-1.5 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_12px_40px_rgba(0,0,0,0.8)] shrink-0 gap-1.5">
+          <div className="flex items-center justify-between px-2.5 py-1.5 mb-1.5 rounded-2xl liquid-glass-card shrink-0 gap-1.5">
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setActiveTab("home")}
-                className="px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-cyan-300 flex items-center gap-1.5 active:scale-95 transition-all touch-manipulation shrink-0"
+                className="liquid-glass-pill px-2.5 py-1 rounded-xl text-xs font-semibold text-slate-800 hover:text-cyan-700 flex items-center gap-1.5 active:scale-95 transition-all touch-manipulation shrink-0 cursor-pointer"
               >
-                <HomeIcon className="h-3.5 w-3.5" />
+                <HomeIcon className="h-3.5 w-3.5 text-cyan-600" />
                 <span>Home</span>
               </button>
-              <div className="hidden xs:flex items-center gap-1.5 text-[11px] text-slate-300">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-                <span className="font-bold text-white">PC Landscape</span>
-                <span className="text-slate-500">|</span>
-                <span className="text-slate-400 font-mono">1920×1080</span>
+              <div className="hidden xs:flex items-center gap-1.5 text-[11px] text-slate-700">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
+                <span className="font-bold text-slate-900">PC Landscape</span>
+                <span className="text-slate-400">|</span>
+                <span className="text-slate-600 font-mono">1920×1080</span>
               </div>
             </div>
 
@@ -680,10 +695,10 @@ export default function App() {
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
               <button
                 onClick={() => setShowVirtualKeyboard(!showVirtualKeyboard)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 border transition-all active:scale-95 touch-manipulation shrink-0 ${
+                className={`px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center gap-1 border transition-all active:scale-95 touch-manipulation shrink-0 cursor-pointer ${
                   showVirtualKeyboard
-                    ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)]"
-                    : "bg-white/[0.06] border-white/10 text-slate-200 hover:bg-white/10"
+                    ? "bg-cyan-500 text-white border-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.5)] font-bold"
+                    : "liquid-glass-pill text-slate-800"
                 }`}
               >
                 <KeyboardIcon className="h-3.5 w-3.5" />
@@ -691,35 +706,35 @@ export default function App() {
               </button>
               <button
                 onClick={handleScreenClick}
-                className="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-400/40 hover:bg-cyan-500/30 text-xs font-semibold text-cyan-200 active:scale-95 transition-all touch-manipulation shrink-0"
+                className="px-2.5 py-1 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-xs font-bold text-cyan-900 active:scale-95 transition-all touch-manipulation shrink-0 cursor-pointer shadow-xs"
               >
                 Left Click
               </button>
               <button
                 onClick={handleRightClick}
-                className="px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-200 active:scale-95 transition-all touch-manipulation shrink-0"
+                className="px-2.5 py-1 rounded-xl liquid-glass-pill text-xs font-semibold text-slate-800 active:scale-95 transition-all touch-manipulation shrink-0 cursor-pointer shadow-xs"
               >
                 Right Click
               </button>
               <button
                 onClick={handleDoubleClick}
-                className="px-2 py-1 rounded-lg bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-200 active:scale-95 transition-all touch-manipulation shrink-0"
+                className="px-2 py-1 rounded-xl liquid-glass-pill text-xs font-semibold text-slate-800 active:scale-95 transition-all touch-manipulation shrink-0 cursor-pointer shadow-xs"
               >
                 2x
               </button>
               <button
                 onClick={() => handleScroll("up")}
-                className="px-2 py-1 rounded-lg bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-200 active:scale-95 transition-all touch-manipulation shrink-0"
+                className="px-2 py-1 rounded-xl liquid-glass-pill text-xs font-semibold text-slate-800 active:scale-95 transition-all touch-manipulation shrink-0 cursor-pointer shadow-xs"
                 title="Scroll Up"
               >
-                ▲ Up
+                Up
               </button>
               <button
                 onClick={() => handleScroll("down")}
-                className="px-2 py-1 rounded-lg bg-white/[0.06] border border-white/10 hover:bg-white/10 text-xs font-semibold text-slate-200 active:scale-95 transition-all touch-manipulation shrink-0"
+                className="px-2 py-1 rounded-xl liquid-glass-pill text-xs font-semibold text-slate-800 active:scale-95 transition-all touch-manipulation shrink-0 cursor-pointer shadow-xs"
                 title="Scroll Down"
               >
-                ▼ Down
+                Down
               </button>
             </div>
           </div>
@@ -741,16 +756,16 @@ export default function App() {
           </AnimatePresence>
 
           {/* Full Landscape Screen Projection Canvas */}
-          <div className="relative flex-1 min-h-0 w-full rounded-2xl p-[1px] bg-gradient-to-b from-white/20 via-cyan-500/20 to-blue-500/30 shadow-2xl overflow-hidden flex flex-col">
+          <div className="relative flex-1 min-h-0 w-full rounded-2xl p-[1px] liquid-glass-card shadow-2xl overflow-hidden flex flex-col">
             {/* Landscape Monitor Switcher Bar */}
-            <div className="flex items-center justify-between px-2.5 py-1 bg-slate-950/90 border-b border-white/10 z-20 shrink-0">
+            <div className="flex items-center justify-between px-2.5 py-1 bg-white/80 backdrop-blur-xl border-b border-white/80 z-20 shrink-0">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399] shrink-0" />
-                <span className="text-[11px] font-bold tracking-wider text-emerald-400 uppercase truncate">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981] shrink-0" />
+                <span className="text-[11px] font-bold tracking-wider text-slate-800 uppercase truncate">
                   {selectedMonitor === "external" ? "🖥️ External Screen" : selectedMonitor === "primary" ? "💻 Primary Screen" : "🔲 All Displays"}
                 </span>
                 {liveScreenFrame && (
-                  <span className="bg-rose-950/70 border border-rose-500/50 text-rose-300 text-[9px] px-1.5 py-0.2 rounded font-bold animate-pulse shrink-0">
+                  <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.2 rounded font-bold animate-pulse shrink-0">
                     LIVE
                   </span>
                 )}
@@ -758,30 +773,30 @@ export default function App() {
               <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => handleSelectMonitor("external")}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all shrink-0 touch-manipulation ${
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all shrink-0 touch-manipulation cursor-pointer ${
                     selectedMonitor === "external"
-                      ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_12px_rgba(34,211,238,0.8)]"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      ? "bg-cyan-500 text-white font-bold shadow-md"
+                      : "bg-white/80 border border-slate-200 text-slate-700 hover:bg-white"
                   }`}
                 >
                   🖥️ External
                 </button>
                 <button
                   onClick={() => handleSelectMonitor("primary")}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all shrink-0 touch-manipulation ${
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all shrink-0 touch-manipulation cursor-pointer ${
                     selectedMonitor === "primary"
-                      ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_12px_rgba(34,211,238,0.8)]"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      ? "bg-cyan-500 text-white font-bold shadow-md"
+                      : "bg-white/80 border border-slate-200 text-slate-700 hover:bg-white"
                   }`}
                 >
                   💻 Primary
                 </button>
                 <button
                   onClick={() => handleSelectMonitor("all")}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all shrink-0 touch-manipulation ${
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all shrink-0 touch-manipulation cursor-pointer ${
                     selectedMonitor === "all"
-                      ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_12px_rgba(34,211,238,0.8)]"
-                      : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      ? "bg-cyan-500 text-white font-bold shadow-md"
+                      : "bg-white/80 border border-slate-200 text-slate-700 hover:bg-white"
                   }`}
                 >
                   🔲 All
@@ -841,15 +856,15 @@ export default function App() {
         </div>
       ) : (
         /* VIEW 2: REFINED LIQUID GLASS HOME DASHBOARD (Optimized for Samsung Galaxy A17 & Mobile Screens) */
-        <div className="w-full max-w-[430px] h-[100dvh] max-h-[100dvh] flex flex-col justify-between px-2.5 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] pt-[max(env(safe-area-inset-top,0px),2.75rem)] relative z-10 mx-auto overflow-hidden">
+        <div className="w-full max-w-[430px] h-[100dvh] max-h-[100dvh] flex flex-col justify-between px-2.5 pb-[max(env(safe-area-inset-bottom,0px),1.5rem)] pt-[max(env(safe-area-inset-top,0px),1.5rem)] relative z-10 mx-auto overflow-hidden">
           {/* TOP CARD: Refined Liquid Glass JARVIS Connected Card */}
           <div
             onClick={() => setShowSettingsModal(true)}
             className="group relative rounded-2xl p-2.5 mb-1.5 cursor-pointer transition-all duration-300 active:scale-[0.99] liquid-glass-card flex items-center justify-between shrink-0"
           >
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              {/* Miniature PC Screen Thumbnail with glowing neon frame */}
-              <div className="relative h-10 w-14 shrink-0 rounded-xl border border-cyan-400/60 bg-[#070e1f] p-0.5 shadow-[0_0_12px_rgba(6,182,212,0.4)] flex flex-col justify-between overflow-hidden">
+              {/* Miniature PC Screen Thumbnail with glowing frame */}
+              <div className="relative h-10 w-14 shrink-0 rounded-xl border border-cyan-500/50 bg-slate-900/90 p-0.5 shadow-sm flex flex-col justify-between overflow-hidden">
                 {liveScreenFrame ? (
                   <img
                     src={liveScreenFrame}
@@ -858,16 +873,16 @@ export default function App() {
                   />
                 ) : (
                   <>
-                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-950/40 via-[#071329] to-blue-950/40" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/30 via-slate-900 to-blue-900/30" />
                     <div className="relative z-10 w-full h-full flex flex-col justify-between p-0.5">
                       <div className="flex justify-between items-center text-[7px] text-cyan-300">
                         <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
                         <span className="text-[7px] font-mono opacity-90">LIVE</span>
                       </div>
-                      <div className="flex items-center justify-center text-[7px] text-cyan-200">
+                      <div className="flex items-center justify-center text-[7px] text-cyan-300">
                         <Monitor className="h-3.5 w-3.5 text-cyan-400" />
                       </div>
-                      <div className="w-full h-0.5 bg-cyan-900/50 rounded-xs" />
+                      <div className="w-full h-0.5 bg-cyan-800/40 rounded-xs" />
                     </div>
                   </>
                 )}
@@ -876,12 +891,12 @@ export default function App() {
               {/* Title & Connection Details */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-1">
-                  <h1 className="text-sm sm:text-base font-extrabold tracking-wide text-white leading-tight flex items-center gap-1.5 truncate">
+                  <h1 className="text-sm sm:text-base font-extrabold tracking-wide text-slate-900 leading-tight flex items-center gap-1.5 truncate">
                     JARVIS
                   </h1>
                   {isWatchdogEnabled && (
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-indigo-950/80 border border-indigo-400/50 text-indigo-300 animate-pulse flex items-center gap-0.5">
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-indigo-100 border border-indigo-400/50 text-indigo-700 animate-pulse flex items-center gap-0.5">
                         <BellRing className="h-2.5 w-2.5" />
                         <span>WATCH</span>
                       </span>
@@ -889,19 +904,19 @@ export default function App() {
                   )}
                 </div>
 
-                <p className="text-[11px] text-slate-300 font-medium truncate">Connected to PC</p>
+                <p className="text-[11px] text-slate-600 font-medium truncate">Connected to PC</p>
                 <div className="flex items-center gap-1.5 mt-0.5 text-[10px] sm:text-[11px] font-medium truncate">
                   <span
                     className={`flex items-center gap-1 truncate ${
-                      isConnected ? "text-emerald-400" : isConnecting ? "text-amber-400" : "text-cyan-400"
+                      isConnected ? "text-emerald-600" : isConnecting ? "text-amber-600" : "text-cyan-700"
                     }`}
                   >
                     <span
                       className={`h-1.5 w-1.5 shrink-0 rounded-full ${
                         isConnected
-                          ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]"
+                          ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"
                           : isConnecting
-                          ? "bg-amber-400 animate-ping"
+                          ? "bg-amber-500 animate-ping"
                           : "bg-cyan-500 animate-pulse shadow-[0_0_8px_#06b6d4]"
                       }`}
                     />
@@ -909,40 +924,39 @@ export default function App() {
                       {isConnected ? "Online (Cloud Relay)" : isConnecting ? "Connecting..." : "Awaiting PC Feed"}
                     </span>
                   </span>
-                  <span className="text-slate-600 shrink-0">|</span>
-                  <span className="text-slate-300 font-normal shrink-0">{osName}</span>
-                  <span className="text-slate-600 shrink-0">|</span>
-                  <span className="text-cyan-400/90 font-mono text-[9px] shrink-0">{pingMs}ms</span>
+                  <span className="text-slate-400 shrink-0">|</span>
+                  <span className="text-slate-600 font-medium shrink-0">{osName}</span>
+                  <span className="text-slate-400 shrink-0">|</span>
+                  <span className="text-cyan-800 font-mono text-[9px] shrink-0 font-bold">{pingMs}ms</span>
                 </div>
               </div>
             </div>
 
-            <div className="p-1 rounded-full text-slate-400 group-hover:text-cyan-300 transition-colors shrink-0">
+            <div className="p-1 rounded-full text-slate-500 group-hover:text-cyan-600 transition-colors shrink-0">
               <ChevronRight className="h-4 w-4" />
             </div>
           </div>
 
           {relayNotice && (
-            <div className="mb-1.5 px-2.5 py-1 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-[10px] text-cyan-200 flex items-center justify-between shrink-0">
-              <span className="truncate">{relayNotice}</span>
-              <button onClick={() => setRelayNotice(null)} className="text-slate-400 hover:text-white ml-2 shrink-0">✕</button>
+            <div className="mb-1.5 px-2.5 py-1 rounded-xl bg-cyan-100/90 border border-cyan-400/50 text-[10px] text-cyan-900 flex items-center justify-between shrink-0 shadow-xs">
+              <span className="truncate font-medium">{relayNotice}</span>
+              <button onClick={() => setRelayNotice(null)} className="text-slate-500 hover:text-slate-900 ml-2 shrink-0">✕</button>
             </div>
           )}
 
           {/* NAVIGATION SEGMENTED CONTROL: Home | PC */}
-          <div className="grid grid-cols-2 border-b border-cyan-950/80 mb-1.5 text-xs font-medium shrink-0">
+          <div className="grid grid-cols-2 p-1 rounded-2xl liquid-glass-pill mb-1.5 text-xs font-semibold shrink-0 gap-1 shadow-xs">
             <button
               onClick={() => setActiveTab("home")}
-              className="flex items-center justify-center gap-1.5 py-1.5 relative transition-all text-cyan-400 font-semibold touch-manipulation"
+              className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl transition-all font-bold touch-manipulation cursor-pointer bg-white/95 text-cyan-800 shadow-sm"
             >
-              <HomeIcon className="h-3.5 w-3.5" />
+              <HomeIcon className="h-3.5 w-3.5 text-cyan-600" />
               <span>Home</span>
-              <span className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
             </button>
 
             <button
               onClick={() => setActiveTab("pc")}
-              className="flex items-center justify-center gap-1.5 py-1.5 relative transition-all text-slate-400 hover:text-white touch-manipulation"
+              className="flex items-center justify-center gap-1.5 py-1.5 rounded-xl transition-all text-slate-700 hover:text-slate-900 touch-manipulation cursor-pointer hover:bg-white/50"
             >
               <Monitor className="h-3.5 w-3.5" />
               <span>PC (Remote)</span>
@@ -950,17 +964,17 @@ export default function App() {
           </div>
 
           {/* CENTRAL PC PROJECTION SCREEN */}
-          <div className="w-full relative rounded-2xl p-[1px] bg-gradient-to-b from-white/20 via-cyan-500/20 to-blue-500/30 shadow-[0_12px_32px_rgba(0,0,0,0.8)] mb-1.5 shrink-0">
-            <div className="w-full rounded-[15px] bg-[#070f22] overflow-hidden flex flex-col relative h-[275px] xs:h-[300px]">
+          <div className="w-full relative rounded-2xl p-[1px] liquid-glass-card shadow-xl mb-1.5 shrink-0">
+            <div className="w-full rounded-[15px] bg-slate-950 overflow-hidden flex flex-col relative h-[225px] xs:h-[245px]">
               {/* Home Screen Monitor Switcher Header */}
-              <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-950/95 border-b border-white/10 z-20 shrink-0 gap-1.5">
+              <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/85 backdrop-blur-xl border-b border-white/80 z-20 shrink-0 gap-1.5">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-                  <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase truncate">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
+                  <span className="text-[10px] font-bold tracking-wider text-slate-800 uppercase truncate">
                     {selectedMonitor === "external" ? "External" : selectedMonitor === "primary" ? "Primary" : "All"}
                   </span>
                   {liveScreenFrame && (
-                    <span className="bg-rose-950/70 border border-rose-500/50 text-rose-300 text-[8px] px-1.5 py-0.2 rounded font-bold shrink-0 animate-pulse">
+                    <span className="bg-rose-500 text-white text-[8px] px-1.5 py-0.2 rounded font-bold shrink-0 animate-pulse">
                       LIVE
                     </span>
                   )}
@@ -968,30 +982,30 @@ export default function App() {
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => handleSelectMonitor("external")}
-                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all shrink-0 touch-manipulation cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all shrink-0 touch-manipulation cursor-pointer ${
                       selectedMonitor === "external"
-                        ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_8px_rgba(34,211,238,0.8)]"
-                        : "bg-slate-800/80 text-slate-300 hover:bg-slate-700"
+                        ? "bg-cyan-500 text-white font-bold shadow-sm"
+                        : "bg-white/80 border border-slate-200 text-slate-700 hover:bg-white"
                     }`}
                   >
                     🖥️ Ext
                   </button>
                   <button
                     onClick={() => handleSelectMonitor("primary")}
-                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all shrink-0 touch-manipulation cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all shrink-0 touch-manipulation cursor-pointer ${
                       selectedMonitor === "primary"
-                        ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_8px_rgba(34,211,238,0.8)]"
-                        : "bg-slate-800/80 text-slate-300 hover:bg-slate-700"
+                        ? "bg-cyan-500 text-white font-bold shadow-sm"
+                        : "bg-white/80 border border-slate-200 text-slate-700 hover:bg-white"
                     }`}
                   >
                     💻 Pri
                   </button>
                   <button
                     onClick={() => handleSelectMonitor("all")}
-                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all shrink-0 touch-manipulation cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all shrink-0 touch-manipulation cursor-pointer ${
                       selectedMonitor === "all"
-                        ? "bg-cyan-400 text-slate-950 font-bold shadow-[0_0_8px_rgba(34,211,238,0.8)]"
-                        : "bg-slate-800/80 text-slate-300 hover:bg-slate-700"
+                        ? "bg-cyan-500 text-white font-bold shadow-sm"
+                        : "bg-white/80 border border-slate-200 text-slate-700 hover:bg-white"
                     }`}
                   >
                     🔲 All
@@ -1019,7 +1033,7 @@ export default function App() {
                     />
                   </div>
                 ) : (
-                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-3 bg-slate-950/95 select-none">
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-3 bg-slate-900/95 select-none">
                     <div className="relative mb-1.5">
                       <Monitor className="h-8 w-8 text-cyan-400 animate-pulse" />
                       <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
@@ -1027,7 +1041,7 @@ export default function App() {
                     <p className="text-[11px] font-bold text-white tracking-wide">
                       Waiting for Screen Feed...
                     </p>
-                    <p className="text-[9px] text-slate-400 mt-0.5 max-w-xs">
+                    <p className="text-[9px] text-slate-300 mt-0.5 max-w-xs">
                       Run <code className="text-cyan-300 font-mono">python pc.py</code>. Display: <span className="text-cyan-300 font-mono font-semibold">{selectedMonitor}</span>
                     </p>
                   </div>
@@ -1060,51 +1074,37 @@ export default function App() {
               </div>
 
               {/* Horizontally Swipable Quick Touch Controls Bar Below Screen */}
-              <div className="w-full bg-slate-950/95 border-t border-white/10 z-20 shrink-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1 px-2 touch-pan-x">
+              <div className="w-full bg-white/85 backdrop-blur-xl border-t border-white/80 z-20 shrink-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1 px-2 touch-pan-x">
                 <div className="flex items-center gap-1.5 min-w-max">
                   <button
                     onClick={handleScreenClick}
-                    className="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-[10px] font-bold text-cyan-200 active:scale-95 transition-all touch-manipulation cursor-pointer flex items-center gap-1 shadow-xs"
+                    className="px-2.5 py-1 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-[10px] font-bold text-cyan-900 active:scale-95 transition-all touch-manipulation cursor-pointer flex items-center gap-1 shadow-xs"
                   >
-                    <MousePointer className="h-3 w-3 text-cyan-400" />
+                    <MousePointer className="h-3 w-3 text-cyan-600" />
                     <span>Left Click</span>
                   </button>
                   <button
                     onClick={handleRightClick}
-                    className="px-2.5 py-1 rounded-lg bg-white/[0.07] border border-white/15 text-[10px] font-semibold text-slate-200 active:scale-95 transition-all touch-manipulation cursor-pointer flex items-center gap-1 shadow-xs"
+                    className="px-2.5 py-1 rounded-xl liquid-glass-pill text-[10px] font-semibold text-slate-800 active:scale-95 transition-all touch-manipulation cursor-pointer flex items-center gap-1 shadow-xs"
                   >
                     <span>Right Click</span>
                   </button>
                   <button
                     onClick={handleDoubleClick}
-                    className="px-2 py-1 rounded-lg bg-white/[0.07] border border-white/15 text-[10px] font-semibold text-slate-200 active:scale-95 transition-all touch-manipulation cursor-pointer flex items-center gap-1 shadow-xs"
+                    className="px-2 py-1 rounded-xl liquid-glass-pill text-[10px] font-semibold text-slate-800 active:scale-95 transition-all touch-manipulation cursor-pointer flex items-center gap-1 shadow-xs"
                   >
                     <span>2× Double</span>
                   </button>
                   <button
                     onClick={() => setShowVirtualKeyboard(!showVirtualKeyboard)}
-                    className={`px-2.5 py-1 rounded-lg border text-[10px] font-semibold flex items-center gap-1 active:scale-95 transition-all touch-manipulation cursor-pointer shadow-xs ${
+                    className={`px-2.5 py-1 rounded-xl border text-[10px] font-semibold flex items-center gap-1 active:scale-95 transition-all touch-manipulation cursor-pointer shadow-xs ${
                       showVirtualKeyboard
-                        ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.6)] font-bold"
-                        : "bg-white/[0.07] border-white/15 text-slate-200"
+                        ? "bg-cyan-500 text-white border-cyan-400 shadow-sm font-bold"
+                        : "liquid-glass-pill text-slate-800"
                     }`}
                   >
                     <KeyboardIcon className="h-3 w-3" />
                     <span>Keyboard</span>
-                  </button>
-                  <button
-                    onClick={() => handleScroll("up")}
-                    className="px-2.5 py-1 rounded-lg bg-white/[0.07] border border-white/15 text-[10px] text-slate-300 hover:text-white active:scale-95 flex items-center gap-1 touch-manipulation cursor-pointer shadow-xs"
-                    title="Scroll Up"
-                  >
-                    <span>▲ Scroll Up</span>
-                  </button>
-                  <button
-                    onClick={() => handleScroll("down")}
-                    className="px-2.5 py-1 rounded-lg bg-white/[0.07] border border-white/15 text-[10px] text-slate-300 hover:text-white active:scale-95 flex items-center gap-1 touch-manipulation cursor-pointer shadow-xs"
-                    title="Scroll Down"
-                  >
-                    <span>▼ Scroll Down</span>
                   </button>
                   <button
                     onClick={() => {
@@ -1112,142 +1112,21 @@ export default function App() {
                       setCursorPos({ x: 50, y: 50 });
                       addJarvisMessage("Mouse cursor centered to 50%, 50%.");
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-white/[0.07] border border-white/15 text-[10px] text-slate-300 hover:text-white active:scale-95 flex items-center gap-1 touch-manipulation cursor-pointer shadow-xs"
+                    className="px-2.5 py-1 rounded-xl liquid-glass-pill text-[10px] text-slate-800 hover:text-cyan-700 active:scale-95 flex items-center gap-1 touch-manipulation cursor-pointer shadow-xs"
                     title="Center Mouse Pointer"
                   >
                     <span>🎯 Center</span>
                   </button>
                   <button
                     onClick={() => setActiveTab("pc")}
-                    className="px-2.5 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 hover:text-white transition-all active:scale-95 shadow-sm flex items-center gap-1.5 touch-manipulation cursor-pointer"
+                    className="px-2.5 py-1 rounded-xl liquid-glass-pill text-slate-800 hover:text-cyan-700 transition-all active:scale-95 shadow-xs flex items-center gap-1.5 touch-manipulation cursor-pointer font-semibold text-[10px]"
                     title="Full Landscape Remote Mode"
                   >
-                    <Maximize2 className="h-3 w-3 text-cyan-400" />
-                    <span className="font-semibold">Fullscreen</span>
+                    <Maximize2 className="h-3 w-3 text-cyan-600" />
+                    <span>Fullscreen</span>
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* LIQUID GLASS QUICK MACRO DOCK CAROUSEL */}
-          <div className="w-full shrink-0 mb-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-0.5">
-            <div className="flex items-center gap-1.5 min-w-max px-0.5">
-              {/* Macro: Continue Claude */}
-              <button
-                onClick={() => handleTriggerMacro("claude_continue", "Continue Claude")}
-                className="liquid-glass-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-cyan-200 hover:text-white flex items-center gap-1.5 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer"
-                title="Send 'continue' + Enter to Claude / terminal"
-              >
-                <Zap className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />
-                <span>Claude: Continue</span>
-              </button>
-
-              {/* OCR Screen Text Extractor */}
-              <button
-                onClick={handleExtractOcr}
-                disabled={isExtractingOcr}
-                className="liquid-glass-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-cyan-200 hover:text-white flex items-center gap-1.5 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer"
-                title="Extract text/code from screen via Gemini 3.1 Flash-Lite"
-              >
-                <FileText className="h-3.5 w-3.5 text-cyan-400" />
-                <span>{isExtractingOcr ? "Scanning..." : "OCR Text"}</span>
-              </button>
-
-              {/* Claude Watchdog Toggle */}
-              <button
-                onClick={() => {
-                  triggerHaptic([30]);
-                  playHoloChirp(isWatchdogEnabled ? 600 : 1000, "sine", 0.1);
-                  setIsWatchdogEnabled(!isWatchdogEnabled);
-                  addJarvisMessage(
-                    !isWatchdogEnabled
-                      ? "🔔 Claude Watchdog activated. Your phone will vibrate and alert you when Claude finishes replying."
-                      : "Claude Watchdog disabled, sir."
-                  );
-                }}
-                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer ${
-                  isWatchdogEnabled
-                    ? "liquid-glass-active text-white animate-pulse"
-                    : "liquid-glass-pill text-slate-300 hover:text-cyan-200"
-                }`}
-                title="Auto-alert & vibrate when Claude finishes generating"
-              >
-                {isWatchdogEnabled ? (
-                  <BellRing className="h-3.5 w-3.5 text-cyan-300" />
-                ) : (
-                  <Bell className="h-3.5 w-3.5 text-slate-400" />
-                )}
-                <span>Watchdog: {isWatchdogEnabled ? "ON" : "OFF"}</span>
-              </button>
-
-              {/* Macro: Restart Dev Server */}
-              <button
-                onClick={() => handleTriggerMacro("restart_server", "Restart Dev Server")}
-                className="liquid-glass-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-slate-300 hover:text-cyan-200 flex items-center gap-1.5 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer"
-                title="Ctrl+C & npm run dev"
-              >
-                <RotateCcw className="h-3.5 w-3.5 text-cyan-400" />
-                <span>Restart Dev</span>
-              </button>
-
-              {/* Macro: Git Push */}
-              <button
-                onClick={() => handleTriggerMacro("git_quick_push", "Git Commit & Push")}
-                className="liquid-glass-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-slate-300 hover:text-cyan-200 flex items-center gap-1.5 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer"
-                title="Git commit and push changes"
-              >
-                <Terminal className="h-3.5 w-3.5 text-cyan-400" />
-                <span>Git Push</span>
-              </button>
-
-              {/* Macro: Emergency Kill */}
-              <button
-                onClick={() => handleTriggerMacro("emergency_kill", "Emergency Kill (Ctrl+C)")}
-                className="liquid-glass-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-rose-300 hover:text-rose-100 flex items-center gap-1.5 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer"
-                title="Send double Ctrl+C to terminate running task"
-              >
-                <X className="h-3.5 w-3.5 text-rose-400" />
-                <span>Kill Task</span>
-              </button>
-
-              {/* Media Controls */}
-              <button
-                onClick={() => handleTriggerMacro("play_pause", "Play/Pause Media")}
-                className="liquid-glass-pill px-2 py-1.5 rounded-xl text-[11px] font-semibold text-slate-300 hover:text-cyan-200 flex items-center gap-1 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer"
-                title="Media Play/Pause"
-              >
-                <Play className="h-3 w-3 text-cyan-400" />
-                <Pause className="h-3 w-3 text-cyan-400" />
-              </button>
-
-              <button
-                onClick={() => handleTriggerMacro("volume_up", "Volume Up")}
-                className="liquid-glass-pill px-2 py-1.5 rounded-xl text-[11px] font-semibold text-slate-300 hover:text-cyan-200 flex items-center gap-1 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer"
-                title="Volume Up"
-              >
-                <Volume2 className="h-3.5 w-3.5 text-cyan-400" />
-                <span>+</span>
-              </button>
-
-              <button
-                onClick={() => handleTriggerMacro("volume_down", "Volume Down")}
-                className="liquid-glass-pill px-2 py-1.5 rounded-xl text-[11px] font-semibold text-slate-300 hover:text-cyan-200 flex items-center gap-1 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer"
-                title="Volume Down"
-              >
-                <Volume2 className="h-3.5 w-3.5 text-cyan-400" />
-                <span>-</span>
-              </button>
-
-              {/* Lock PC */}
-              <button
-                onClick={() => handleTriggerMacro("lock_pc", "Lock Workstation")}
-                className="liquid-glass-pill px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-slate-300 hover:text-cyan-200 flex items-center gap-1.5 active:scale-95 transition-all touch-manipulation shadow-xs cursor-pointer"
-                title="Lock PC Screen"
-              >
-                <Lock className="h-3.5 w-3.5 text-slate-400" />
-                <span>Lock PC</span>
-              </button>
             </div>
           </div>
 
@@ -1270,9 +1149,9 @@ export default function App() {
           </AnimatePresence>
 
           {/* ASSISTANT / CHAT SECTION (Fluid scrolling middle zone, zero screen overlap, hidden scrollbar) */}
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-2 mb-1.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex-1 min-h-[140px] overflow-y-auto space-y-2 mb-2 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <AnimatePresence initial={false}>
-              {chatMessages.slice(-3).map((msg, idx) => (
+              {chatMessages.map((msg, idx) => (
                 <motion.div
                   key={msg.id ? `${msg.id}-${idx}` : `msg-${idx}`}
                   initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -1282,19 +1161,19 @@ export default function App() {
                   className={`flex items-start gap-2 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {msg.sender === "jarvis" && (
-                    <div className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-cyan-950 via-[#0a1835] to-blue-950 border border-cyan-400/80 shadow-[0_0_10px_rgba(6,182,212,0.5)] flex items-center justify-center font-bold text-white text-xs">
+                    <div className="h-7 w-7 shrink-0 rounded-full bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center font-bold text-cyan-800 text-xs shadow-xs">
                       J
                     </div>
                   )}
 
                   <div
-                    className={`rounded-2xl p-2.5 backdrop-blur-3xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_8px_24px_rgba(0,0,0,0.6)] max-w-[88%] space-y-1 ${
+                    className={`rounded-2xl p-2.5 backdrop-blur-3xl shadow-xs max-w-[88%] space-y-1 ${
                       msg.sender === "user"
-                        ? "rounded-tr-xs bg-gradient-to-br from-cyan-900/40 via-blue-900/30 to-indigo-900/40 border border-cyan-400/40 text-right ml-auto"
-                        : "rounded-tl-xs bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/15"
+                        ? "rounded-tr-xs bg-gradient-to-br from-cyan-500/25 via-sky-500/20 to-blue-500/20 border border-cyan-400/50 text-right ml-auto text-slate-900"
+                        : "rounded-tl-xs liquid-glass-card text-slate-900"
                     }`}
                   >
-                    <p className="text-xs text-white leading-relaxed font-medium">
+                    <p className="text-xs text-slate-900 leading-relaxed font-medium">
                       {msg.text}
                     </p>
 
@@ -1307,23 +1186,23 @@ export default function App() {
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: idx * 0.05 }}
-                            className="px-1.5 py-0.2 rounded bg-cyan-950/70 border border-cyan-600/40 text-[8px] font-mono text-cyan-300 flex items-center gap-1 shadow-sm"
+                            className="px-1.5 py-0.2 rounded bg-cyan-100 border border-cyan-300 text-[8px] font-mono text-cyan-900 flex items-center gap-1 shadow-xs font-semibold"
                           >
                             <span className="opacity-70">#{idx + 1}</span>
                             <span>{step.type}</span>
-                            {step.value && <span className="text-white font-bold">&quot;{step.value}&quot;</span>}
+                            {step.value && <span className="text-cyan-950 font-bold">&quot;{step.value}&quot;</span>}
                           </motion.span>
                         ))}
                       </div>
                     )}
 
-                    <p className={`text-[9px] text-slate-400 font-mono ${msg.sender === "user" ? "text-right" : "text-left"}`}>
+                    <p className={`text-[9px] text-slate-500 font-mono ${msg.sender === "user" ? "text-right" : "text-left"}`}>
                       {msg.time}
                     </p>
                   </div>
 
                   {msg.sender === "user" && (
-                    <div className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-cyan-900 to-blue-950 border border-cyan-500/50 flex items-center justify-center font-bold text-cyan-200 text-xs shadow-[0_0_8px_rgba(6,182,212,0.3)]">
+                    <div className="h-7 w-7 shrink-0 rounded-full bg-cyan-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                       You
                     </div>
                   )}
@@ -1331,14 +1210,17 @@ export default function App() {
               ))}
             </AnimatePresence>
 
+            {/* Anchor ref for auto-scrolling to latest reply */}
+            <div ref={chatEndRef} />
+
             {/* Quick Suggestions Box */}
-            <div className="rounded-2xl p-2.5 bg-gradient-to-br from-white/[0.07] to-white/[0.02] border border-white/15 backdrop-blur-3xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_8px_24px_rgba(0,0,0,0.6)] flex items-start gap-2">
-              <div className="p-0.5 rounded-lg text-cyan-400 mt-0.5 shrink-0">
-                <Lightbulb className="h-3.5 w-3.5 text-cyan-400 drop-shadow-[0_0_8px_#22d3ee]" />
+            <div className="rounded-2xl p-2.5 liquid-glass-card flex items-start gap-2 shadow-xs">
+              <div className="p-0.5 rounded-lg text-cyan-600 mt-0.5 shrink-0">
+                <Lightbulb className="h-3.5 w-3.5 text-cyan-600 drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" />
               </div>
 
               <div className="flex-1 space-y-1 min-w-0">
-                <p className="text-[11px] text-slate-300 font-medium">Quick suggestions:</p>
+                <p className="text-[11px] text-slate-700 font-bold">Quick suggestions:</p>
                 <div className="flex flex-wrap gap-1 pt-0.5">
                   {[
                     "What did Claude reply?",
@@ -1350,10 +1232,10 @@ export default function App() {
                     <button
                       key={promptText}
                       onClick={() => handleSendCommand(promptText)}
-                      className="text-[10px] text-slate-300 hover:text-cyan-300 bg-white/[0.05] border border-white/10 px-2 py-0.5 rounded-full transition-colors cursor-pointer active:scale-95 touch-manipulation flex items-center gap-1"
+                      className="text-[10px] text-slate-700 hover:text-cyan-800 liquid-glass-pill px-2.5 py-0.5 rounded-full transition-colors cursor-pointer active:scale-95 touch-manipulation flex items-center gap-1 font-medium shadow-xs"
                     >
                       {promptText.includes("Claude") || promptText.includes("screen") ? (
-                        <Sparkles className="h-2.5 w-2.5 text-cyan-400" />
+                        <Sparkles className="h-2.5 w-2.5 text-cyan-600" />
                       ) : null}
                       <span>&ldquo;{promptText}&rdquo;</span>
                     </button>
@@ -1372,10 +1254,10 @@ export default function App() {
             />
           )}
 
-          {/* COMMAND INPUT BAR */}
-          <div className="relative flex items-center gap-1.5 mb-1 shrink-0">
-            <div className="flex-1 relative flex items-center rounded-full bg-gradient-to-r from-white/[0.09] via-white/[0.04] to-white/[0.07] border border-white/20 backdrop-blur-3xl px-3 py-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_8px_32px_rgba(0,0,0,0.6)]">
-              <Monitor className="h-3.5 w-3.5 text-slate-400 shrink-0 mr-1.5" />
+          {/* COMMAND INPUT BAR (Bumped up and elevated for easy thumb access) */}
+          <div className="relative flex items-center gap-1.5 mb-3.5 sm:mb-4 shrink-0">
+            <div className="flex-1 relative flex items-center rounded-full liquid-glass-pill px-3.5 py-1.5 shadow-lg border-white/90">
+              <Monitor className="h-4 w-4 text-slate-500 shrink-0 mr-1.5" />
 
               <input
                 type="text"
@@ -1387,77 +1269,77 @@ export default function App() {
                   }
                 }}
                 placeholder="Ask AI (e.g. 'What did Claude reply?') or command PC..."
-                className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none font-sans"
+                className="w-full bg-transparent text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none font-sans font-medium"
               />
 
               <button
                 onClick={toggleSpeechRecognition}
-                className={`p-1 rounded-full mr-1 text-slate-400 hover:text-cyan-300 transition-colors touch-manipulation shrink-0 ${
-                  isListening ? "text-rose-400 animate-pulse" : ""
+                className={`p-1.5 rounded-full mr-1 text-slate-500 hover:text-cyan-600 transition-colors touch-manipulation shrink-0 cursor-pointer ${
+                  isListening ? "text-rose-500 animate-pulse" : ""
                 }`}
                 title="Voice Directive"
               >
-                {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </button>
 
               <button
                 onClick={() => handleSendCommand(inputCommand)}
                 disabled={!inputCommand.trim() || isAiPlanning}
-                className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-500 text-white flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.6)] disabled:opacity-40 active:scale-95 transition-all touch-manipulation"
+                className="h-7.5 w-7.5 shrink-0 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white flex items-center justify-center shadow-md disabled:opacity-40 active:scale-95 transition-all touch-manipulation cursor-pointer"
               >
-                <Send className="h-3 w-3" />
+                <Send className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
 
-          {/* Clean Android Gesture Navigation Indicator Line */}
-          <div className="flex items-center justify-center py-1 shrink-0">
-            <div className="w-20 h-1 rounded-full bg-slate-700/60" />
+          {/* Clean Android Gesture Navigation Spacing */}
+          <div className="flex items-center justify-center pb-1 shrink-0">
+            <div className="w-20 h-1 rounded-full bg-slate-400/40" />
           </div>
         </div>
       )}
 
-      {/* SETTINGS / NGROK & WHATSAPP MODAL DIALOG (Refined Apple Liquid Glass) */}
+      {/* SETTINGS / NGROK & WHATSAPP MODAL DIALOG (Luminous Liquid Glass) */}
       {showSettingsModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-3">
-          <div className="w-full max-w-md rounded-3xl p-5 bg-gradient-to-b from-white/[0.09] via-[#070e1e]/95 to-black/95 border border-white/20 backdrop-blur-3xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.3),0_24px_64px_rgba(0,0,0,0.9)] space-y-3.5 animate-in fade-in zoom-in-95 duration-200 max-h-[90dvh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-xl flex items-center justify-center p-3">
+          <div className="w-full max-w-md rounded-3xl p-5 liquid-glass-card bg-white/92 backdrop-blur-3xl border border-white text-slate-900 shadow-2xl space-y-3.5 animate-in fade-in zoom-in-95 duration-200 max-h-[90dvh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
-                <Terminal className="h-5 w-5 text-cyan-400" />
-                <h2 className="text-sm font-bold font-mono text-white tracking-wide">
+                <Terminal className="h-5 w-5 text-cyan-600" />
+                <h2 className="text-sm font-bold font-mono text-slate-900 tracking-wide">
                   PC AGENT &amp; TUNNEL CONFIG
                 </h2>
               </div>
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="p-1 rounded-full text-slate-400 hover:text-white"
+                className="p-1 rounded-full text-slate-400 hover:text-slate-800 cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Target Phone Notification */}
-            <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-xs space-y-1">
-              <p className="text-emerald-400 font-bold flex items-center gap-1.5">
+            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs space-y-1">
+              <p className="text-emerald-700 font-bold flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>WhatsApp Auto-Send Configured</span>
               </p>
-              <p className="text-slate-300 text-[11px] font-mono">
-                When you run <code className="text-cyan-300">python pc.py</code>, it opens WhatsApp Web to{" "}
-                <strong className="text-white">{targetPhone}</strong> with the tunnel URL &amp; Secret Auth!
+              <p className="text-slate-700 text-[11px] font-mono">
+                When you run <code className="text-cyan-700 font-bold">python pc.py</code>, it opens WhatsApp Web to{" "}
+                <strong className="text-slate-900">{targetPhone}</strong> with the tunnel URL &amp; Secret Auth!
               </p>
             </div>
 
             {/* Ngrok Tunnel URL Input */}
             <div className="space-y-1">
-              <label className="text-xs font-mono text-cyan-300 font-semibold flex items-center justify-between">
+              <label className="text-xs font-mono text-slate-800 font-bold flex items-center justify-between">
                 <span>NGROK TUNNEL URL (WSS://)</span>
                 {copiedTunnel ? (
-                  <span className="text-[10px] text-emerald-400">Copied!</span>
+                  <span className="text-[10px] text-emerald-600 font-bold">Copied!</span>
                 ) : (
                   <button
                     onClick={copyTunnelToClipboard}
-                    className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-0.5"
+                    className="text-[10px] text-slate-500 hover:text-cyan-700 flex items-center gap-0.5 cursor-pointer"
                   >
                     <Copy className="h-3 w-3" /> Copy
                   </button>
@@ -1468,13 +1350,13 @@ export default function App() {
                 value={tunnelUrl}
                 onChange={(e) => setTunnelUrl(e.target.value)}
                 placeholder="wss://0.tcp.ngrok.io:12345"
-                className="w-full rounded-xl bg-black/60 border border-white/15 px-3 py-2.5 text-xs font-mono text-white focus:border-cyan-400 focus:outline-none"
+                className="w-full rounded-xl bg-white border border-slate-300 px-3 py-2.5 text-xs font-mono text-slate-900 focus:border-cyan-500 focus:outline-none shadow-xs"
               />
             </div>
 
             {/* Secret Auth Token */}
             <div className="space-y-1">
-              <label className="text-xs font-mono text-cyan-300 font-semibold">
+              <label className="text-xs font-mono text-slate-800 font-bold">
                 SECRET AUTH TOKEN
               </label>
               <input
@@ -1482,7 +1364,7 @@ export default function App() {
                 value={secretAuth}
                 onChange={(e) => setSecretAuth(e.target.value)}
                 placeholder="JARVIS-7749"
-                className="w-full rounded-xl bg-black/60 border border-white/15 px-3 py-2.5 text-xs font-mono text-white focus:border-cyan-400 focus:outline-none"
+                className="w-full rounded-xl bg-white border border-slate-300 px-3 py-2.5 text-xs font-mono text-slate-900 focus:border-cyan-500 focus:outline-none shadow-xs"
               />
             </div>
 
@@ -1494,7 +1376,7 @@ export default function App() {
                   setShowSettingsModal(false);
                 }}
                 disabled={isConnecting}
-                className="flex-1 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold font-mono text-xs hover:bg-cyan-400 active:scale-95 transition-all text-center shadow-[0_0_16px_rgba(6,182,212,0.4)]"
+                className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold font-mono text-xs active:scale-95 transition-all text-center shadow-md cursor-pointer"
               >
                 {isConnecting ? "Connecting..." : "Connect Tunnel"}
               </button>
@@ -1502,17 +1384,17 @@ export default function App() {
               <a
                 href="/pc.py"
                 download="pc.py"
-                className="px-4 py-2.5 rounded-xl bg-white/[0.07] border border-white/15 font-mono text-xs text-slate-200 hover:border-cyan-400 hover:text-cyan-300 active:scale-95 transition-all flex items-center gap-1.5"
+                className="px-4 py-2.5 rounded-xl liquid-glass-pill font-mono text-xs text-slate-800 hover:text-cyan-800 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <Download className="h-3.5 w-3.5 text-cyan-400" />
+                <Download className="h-3.5 w-3.5 text-cyan-600" />
                 <span>Download pc.py</span>
               </a>
             </div>
 
             {/* Quick Terminal Guide */}
-            <div className="p-3.5 rounded-2xl bg-black/60 border border-white/10 text-[11px] font-mono text-slate-400 space-y-1.5">
-              <p className="text-slate-300 font-semibold">Run on your PC terminal:</p>
-              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-emerald-400 select-all">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] font-mono text-slate-600 space-y-1.5">
+              <p className="text-slate-800 font-bold">Run on your PC terminal:</p>
+              <div className="bg-white p-2.5 rounded-xl border border-slate-300 text-emerald-700 font-bold select-all shadow-inner">
                 python pc.py
               </div>
               <p className="text-[10px] text-slate-500">
@@ -1523,30 +1405,30 @@ export default function App() {
         </div>
       )}
 
-      {/* OPTICAL TEXT EXTRACTION (OCR) MODAL (Ultra-Refined Liquid Glass) */}
+      {/* OPTICAL TEXT EXTRACTION (OCR) MODAL (Luminous Liquid Glass) */}
       {showOcrModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-2xl flex items-center justify-center p-3 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl p-5 bg-gradient-to-b from-white/[0.12] via-[#071126]/95 to-[#020614]/95 border border-white/20 backdrop-blur-3xl shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_24px_64px_rgba(0,0,0,0.9)] space-y-3.5 max-h-[85dvh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2.5 shrink-0">
+        <div className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-xl flex items-center justify-center p-3 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl p-5 liquid-glass-card bg-white/92 backdrop-blur-3xl border border-white text-slate-900 shadow-2xl space-y-3.5 max-h-[85dvh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2.5 shrink-0">
               <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-cyan-400 drop-shadow-[0_0_8px_#22d3ee]" />
+                <FileText className="h-5 w-5 text-cyan-600 drop-shadow-[0_0_8px_rgba(6,182,212,0.4)]" />
                 <div>
-                  <h2 className="text-sm font-bold text-white tracking-wide">
+                  <h2 className="text-sm font-bold text-slate-900 tracking-wide">
                     WORKSTATION SCREEN OCR
                   </h2>
-                  <p className="text-[10px] text-cyan-300 font-mono">Vision OCR Core</p>
+                  <p className="text-[10px] text-cyan-700 font-mono font-semibold">Vision OCR Core</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowOcrModal(false)}
-                className="p-1 rounded-full text-slate-400 hover:text-white transition-colors"
+                className="p-1 rounded-full text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Extracted Text Viewer */}
-            <div className="flex-1 min-h-[160px] overflow-y-auto rounded-2xl bg-black/70 border border-white/10 p-3 font-mono text-xs text-slate-200 select-text [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex-1 min-h-[160px] overflow-y-auto rounded-2xl bg-white border border-slate-200 p-3 font-mono text-xs text-slate-800 select-text [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden shadow-inner">
               <pre className="whitespace-pre-wrap break-words leading-relaxed font-sans text-xs">
                 {extractedOcrText}
               </pre>
@@ -1565,16 +1447,16 @@ export default function App() {
                     // ignore
                   }
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-500 text-slate-950 font-bold font-mono text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-[0_0_16px_rgba(6,182,212,0.4)] cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold font-mono text-xs active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
               >
                 {copiedOcr ? (
                   <>
-                    <ClipboardCheck className="h-4 w-4 text-slate-950" />
+                    <ClipboardCheck className="h-4 w-4 text-white" />
                     <span>COPIED TO PHONE CLIPBOARD!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="h-4 w-4 text-slate-950" />
+                    <Copy className="h-4 w-4 text-white" />
                     <span>COPY TO CLIPBOARD</span>
                   </>
                 )}
@@ -1585,7 +1467,7 @@ export default function App() {
                   setInputCommand(`Explain this code/text from my screen: ${extractedOcrText.substring(0, 100)}...`);
                   setShowOcrModal(false);
                 }}
-                className="px-3.5 py-2.5 rounded-xl bg-white/[0.08] border border-white/15 text-cyan-200 text-xs font-semibold hover:text-white active:scale-95 transition-all cursor-pointer"
+                className="px-3.5 py-2.5 rounded-xl liquid-glass-pill text-slate-800 text-xs font-semibold hover:text-cyan-800 active:scale-95 transition-all cursor-pointer shadow-xs"
                 title="Send extracted text into JARVIS prompt"
               >
                 Ask JARVIS

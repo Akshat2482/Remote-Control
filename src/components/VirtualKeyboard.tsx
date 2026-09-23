@@ -31,23 +31,23 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.98 }}
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
-      className={`relative z-40 rounded-3xl p-3.5 bg-gradient-to-b from-white/[0.1] via-white/[0.04] to-white/[0.06] border border-white/20 backdrop-blur-3xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.25),0_16px_48px_rgba(0,0,0,0.85)] space-y-2.5 ${
+      className={`relative z-40 rounded-3xl p-3.5 liquid-glass-card shadow-2xl space-y-2.5 ${
         isLandscape
           ? "w-full max-w-3xl mx-auto mt-2 mb-2"
           : "mb-3"
       }`}
     >
       {/* Header bar */}
-      <div className="flex items-center justify-between text-xs text-cyan-300 font-mono">
+      <div className="flex items-center justify-between text-xs text-slate-800 font-mono">
         <span className="font-bold flex items-center gap-1.5 truncate">
-          <KeyboardIcon className="h-3.5 w-3.5 text-cyan-400 drop-shadow-[0_0_6px_#22d3ee] shrink-0" />
+          <KeyboardIcon className="h-3.5 w-3.5 text-cyan-600 drop-shadow-[0_0_6px_rgba(6,182,212,0.6)] shrink-0" />
           <span className="tracking-wide truncate">
             KEYBOARD {activeFocusTarget ? `(${activeFocusTarget})` : ""}
           </span>
         </span>
         <button
           onClick={onClose}
-          className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all touch-manipulation shrink-0"
+          className="p-1 rounded-full text-slate-500 hover:text-slate-800 hover:bg-white/40 active:scale-95 transition-all touch-manipulation shrink-0 cursor-pointer"
           title="Close Virtual Keyboard"
         >
           <X className="h-4 w-4" />
@@ -67,13 +67,13 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             }
           }}
           placeholder="Type to send to PC..."
-          className="flex-1 bg-black/60 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 border border-cyan-500/30 focus:border-cyan-400 focus:outline-none font-mono shadow-inner transition-colors"
+          className="flex-1 bg-white/90 rounded-xl px-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 border border-slate-300 focus:border-cyan-500 focus:outline-none font-mono shadow-inner transition-colors"
           autoFocus
         />
         <button
           onClick={onSendBuffer}
           disabled={!buffer.trim()}
-          className="px-3 py-1.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 disabled:opacity-40 disabled:hover:bg-cyan-500 active:scale-95 transition-all flex items-center gap-1 shadow-[0_0_12px_rgba(6,182,212,0.4)] touch-manipulation shrink-0"
+          className="px-3 py-1.5 rounded-xl bg-cyan-500 text-white font-bold text-xs hover:bg-cyan-600 disabled:opacity-40 disabled:hover:bg-cyan-500 active:scale-95 transition-all flex items-center gap-1 shadow-md touch-manipulation shrink-0 cursor-pointer"
         >
           <span>Send</span>
           <CornerDownLeft className="h-3.5 w-3.5" />
@@ -86,7 +86,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           <button
             key={k}
             onClick={() => onSendKey(k)}
-            className="py-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-slate-200 hover:border-cyan-400/80 hover:text-cyan-300 hover:bg-white/10 active:scale-95 transition-all text-center font-medium shadow-sm touch-manipulation truncate"
+            className="py-1.5 rounded-lg liquid-glass-pill text-slate-800 hover:text-cyan-700 active:scale-95 transition-all text-center font-semibold shadow-xs touch-manipulation truncate cursor-pointer"
           >
             {k}
           </button>
@@ -107,7 +107,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
           <button
             key={val}
             onClick={() => onSendKey(val)}
-            className="py-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-slate-300 hover:border-cyan-400/80 hover:text-cyan-300 hover:bg-white/10 active:scale-95 transition-all text-center touch-manipulation truncate"
+            className="py-1.5 rounded-lg liquid-glass-pill text-slate-700 hover:text-cyan-700 active:scale-95 transition-all text-center font-medium shadow-xs touch-manipulation truncate cursor-pointer"
           >
             {label}
           </button>
@@ -116,8 +116,8 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
 
       {/* Arrow navigation keys row */}
       <div className="flex items-center justify-between pt-0.5">
-        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-slate-400 truncate">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-slate-600 truncate font-medium">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
           <span className="truncate">Streams instantly to PC</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -125,7 +125,7 @@ export const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
             <button
               key={arrow}
               onClick={() => onSendKey(arrow)}
-              className="h-6 w-7 sm:w-8 rounded-lg bg-white/[0.05] border border-white/10 text-slate-300 hover:border-cyan-400/80 hover:text-cyan-300 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center text-xs touch-manipulation"
+              className="h-6 w-7 sm:w-8 rounded-lg liquid-glass-pill text-slate-800 hover:text-cyan-700 active:scale-95 transition-all flex items-center justify-center text-xs touch-manipulation font-bold shadow-xs cursor-pointer"
             >
               {arrow}
             </button>
