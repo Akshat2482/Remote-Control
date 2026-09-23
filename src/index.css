@@ -11,3 +11,69 @@
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
+
+/* Premium VisionOS / iOS Liquid Glass Styling */
+.liquid-glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.11) 0%,
+    rgba(255, 255, 255, 0.03) 45%,
+    rgba(6, 182, 212, 0.06) 100%
+  );
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.4),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.3),
+    0 12px 36px rgba(0, 0, 0, 0.65);
+}
+
+.liquid-glass-pill {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(34, 211, 238, 0.08) 100%
+  );
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.45),
+    0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.liquid-glass-active {
+  background: linear-gradient(
+    135deg,
+    rgba(6, 182, 212, 0.35) 0%,
+    rgba(14, 116, 144, 0.25) 50%,
+    rgba(59, 130, 246, 0.3) 100%
+  );
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(34, 211, 238, 0.6);
+  box-shadow: 
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.6),
+    0 0 20px rgba(6, 182, 212, 0.45);
+}
+
+@keyframes liquid-pulse {
+  0%, 100% {
+    transform: scale(1) translate(0, 0);
+    opacity: 0.25;
+  }
+  50% {
+    transform: scale(1.12) translate(12px, -8px);
+    opacity: 0.38;
+  }
+}
+
+.animate-liquid-slow {
+  animation: liquid-pulse 12s ease-in-out infinite;
+}
+
+.animate-liquid-fast {
+  animation: liquid-pulse 7s ease-in-out infinite reverse;
+}

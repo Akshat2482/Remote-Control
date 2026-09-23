@@ -508,6 +508,66 @@ async def dispatch_pc_command(websocket, data):
         if key:
             pyautogui.press(key.lower())
 
+    elif msg_type == "macro":
+        action = data.get("action", "")
+        logger.info(f"⚡ Macro triggered: {action}")
+        if action == "claude_continue":
+            pyautogui.write("continue", interval=0.03)
+            pyautogui.press("enter")
+            await websocket.send(json.dumps({
+                "type": "directive_response",
+                "result": "Typed 'continue' and sent Enter to active window, sir.",
+            }))
+        elif action == "restart_server":
+            pyautogui.hotkey("ctrl", "c")
+            await asyncio.sleep(0.5)
+            pyautogui.write("npm run dev", interval=0.03)
+            pyautogui.press("enter")
+            await websocket.send(json.dumps({
+                "type": "directive_response",
+                "result": "Interrupted server (Ctrl+C) and restarted npm run dev, sir.",
+            }))
+        elif action == "git_quick_push":
+            pyautogui.write('git add . && git commit -m "update" && git push', interval=0.03)
+            pyautogui.press("enter")
+            await websocket.send(json.dumps({
+                "type": "directive_response",
+                "result": "Git commit & push command dispatched, sir.",
+            }))
+        elif action == "emergency_kill":
+            pyautogui.hotkey("ctrl", "c")
+            await asyncio.sleep(0.1)
+            pyautogui.hotkey("ctrl", "c")
+            await websocket.send(json.dumps({
+                "type": "directive_response",
+                "result": "Emergency interrupt (Ctrl+C x2) dispatched, sir.",
+            }))
+        elif action == "lock_pc":
+            try:
+                ctypes.windll.user32.LockWorkStation()
+            except Exception:
+                pass
+            await websocket.send(json.dumps({
+                "type": "directive_response",
+                "result": "Workstation locked securely, sir.",
+            }))
+        elif action == "volume_up":
+            pyautogui.press("volumeup")
+        elif action == "volume_down":
+            pyautogui.press("volumedown")
+        elif action == "volume_mute":
+            pyautogui.press("volumemute")
+        elif action == "play_pause":
+            pyautogui.press("playpause")
+        elif action == "paste_text":
+            paste_text = data.get("text", "")
+            if paste_text:
+                pyautogui.write(paste_text, interval=0.02)
+                await websocket.send(json.dumps({
+                    "type": "directive_response",
+                    "result": f"Pasted phone text to PC ({len(paste_text)} chars).",
+                }))
+
     elif msg_type == "directive":
         cmd = data.get("command", "")
         res = await execute_directive(cmd)

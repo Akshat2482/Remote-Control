@@ -160,7 +160,7 @@ suspend fun sendWakeOnLan(macAddress: String) = withContext(Dispatchers.IO) {
       "MediaPipe LLM Inference API running Gemma 2B or Gemini Nano",
       "Sub-second local token generation using Android GPU / NPU acceleration",
       "Zero data leakage: conversation history stays 100% on the device",
-      "Seamless cloud fallback to Gemini 3.8 Flash when online"
+      "Seamless cloud fallback to Gemini 3.1 Flash-Lite (cheapest model) when online"
     ],
     androidComponents: [
       "com.google.mediapipe:tasks-genai",
