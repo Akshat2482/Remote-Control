@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """
 ==============================================================================
-J.A.R.V.I.S. PC WORKSTATION AGENT (Multi-Monitor External Screen + Profile 14)
+J.A.R.V.I.S. PC WORKSTATION AGENT (Cloudflare Edge Tunnel - 100% Direct)
 ==============================================================================
 Requirements:
     pip install pyautogui websockets Pillow mss
 ==============================================================================
 Configured for:
+- 100% PURE CLOUDFLARE QUICK TUNNEL (No Ngrok, No Cloud Relay, No Warnings)
 - Auto-Detects & Streams EXTERNAL MONITOR / SECONDARY SCREEN directly to phone!
 - Seamless Multi-Monitor Switching (External Screen, Primary Laptop, All Displays)
 - Low-latency live video-rate screen streaming over WebSocket
 - Mouse moves mapped directly to the External Screen coordinates
 - Chrome Profile: Profile 14 (akshatvenu account)
-- Auto-dispatches credentials to WhatsApp Web with enter & send click
+- Auto-dispatches credentials to WhatsApp Web with Enter & Send click
 ==============================================================================
 """
 
@@ -32,6 +33,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import urllib.request
 import webbrowser
 
 # Verify essential packages
@@ -72,10 +74,8 @@ logger = logging.getLogger("JARVIS-PC")
 # Configuration
 LOCAL_PORT = 8765
 TARGET_PHONE = "+919962919450"
-WEB_APP_URL = "https://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app"
-# Akshat2482's GitHub Pages remote control URL
 GITHUB_PAGES_CONTROL_URL = "https://Akshat2482.github.io/Remote-Control/control.html"
-CLOUD_RELAY_URL = "wss://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app/ws/relay?role=pc"
+WEB_APP_URL = "https://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app"
 
 # Specific Chrome configuration for your akshatvenu account
 CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
@@ -148,7 +148,6 @@ def get_target_monitor_rect(monitor_type: str = "external"):
     mons = get_all_windows_monitors()
 
     if monitor_type == "all" or len(mons) == 1:
-        # Combined bounding box of all displays
         min_left = min(m["left"] for m in mons)
         min_top = min(m["top"] for m in mons)
         max_right = max(m["right"] for m in mons)
@@ -165,13 +164,11 @@ def get_target_monitor_rect(monitor_type: str = "external"):
 
     # If user wants External Screen
     if monitor_type == "external":
-        # Look for non-primary monitor
         non_primaries = [m for m in mons if not m["is_primary"]]
         if non_primaries:
             target = non_primaries[0]
             target["name"] = "External Screen"
             return target
-        # If all claim primary or only 1 exists, use the second monitor if available
         if len(mons) > 1:
             target = mons[1]
             target["name"] = "External Screen"
@@ -191,7 +188,6 @@ def capture_monitor_frame(monitor_type: str = "external") -> str:
 
     try:
         img = None
-        # Try mss for high performance capture
         if HAS_MSS:
             try:
                 with mss.mss() as sct:
@@ -206,7 +202,6 @@ def capture_monitor_frame(monitor_type: str = "external") -> str:
             except Exception:
                 HAS_MSS = False
 
-        # Fallback to PIL ImageGrab with all_screens=True
         if img is None:
             bbox = (
                 target_rect["left"],
@@ -216,7 +211,6 @@ def capture_monitor_frame(monitor_type: str = "external") -> str:
             )
             img = ImageGrab.grab(bbox=bbox, all_screens=True)
 
-        # Scale down for fast real-time network streaming (e.g. 1280x720 max)
         max_dim = 1280
         if img.width > max_dim or img.height > max_dim:
             img.thumbnail((max_dim, int(max_dim * img.height / img.width)), Image.Resampling.BILINEAR)
@@ -250,33 +244,54 @@ def open_in_akshatvenu_chrome(url: str, maximized: bool = True):
     webbrowser.open(url)
 
 
+def ensure_cloudflared_installed() -> str:
+    """Finds or automatically installs cloudflared on Windows."""
+    # Check if in PATH
+    bin_path = shutil.which("cloudflared")
+    if bin_path:
+        return bin_path
+
+    # Check local folder
+    local_cf = os.path.abspath("cloudflared.exe")
+    if os.path.exists(local_cf):
+        return local_cf
+
+    # Download official cloudflared binary
+    logger.info("Downloading official cloudflared.exe binary from Cloudflare...")
+    cf_url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+
+    try:
+        req = urllib.request.Request(cf_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        with urllib.request.urlopen(req, timeout=30) as resp, open(local_cf, "wb") as f:
+            shutil.copyfileobj(resp, f)
+        if os.path.exists(local_cf) and os.path.getsize(local_cf) > 1000000:
+            logger.info(f"✓ Downloaded cloudflared.exe ({os.path.getsize(local_cf) // 1024 // 1024}MB)!")
+            return local_cf
+    except Exception as e:
+        logger.warning(f"Python download notice: {e}. Trying PowerShell...")
+
+    try:
+        ps_cmd = f"Invoke-WebRequest -Uri '{cf_url}' -OutFile '{local_cf}'"
+        subprocess.run(["powershell", "-Command", ps_cmd], check=True, timeout=60)
+        if os.path.exists(local_cf):
+            logger.info("✓ Downloaded cloudflared.exe via PowerShell successfully!")
+            return local_cf
+    except Exception as e:
+        logger.warning(f"PowerShell download notice: {e}")
+
+    return ""
+
+
 def start_cloudflare_tunnel(port: int) -> str:
     """
-    Starts a Cloudflare Quick Tunnel (TryCloudflare).
+    Starts an official Cloudflare Quick Tunnel (TryCloudflare).
     - 100% Free & instant (no account, no credit card required)
     - Zero interstitial warning pages (eliminates WebSocket resets and drops)
     - Unlimited high-speed edge bandwidth backed by Cloudflare
     """
     logger.info("⚡ Initializing Cloudflare Tunnel (TryCloudflare)...")
-    
-    # 1. Locate or obtain cloudflared binary
-    cloudflared_bin = shutil.which("cloudflared")
-    if not cloudflared_bin and os.path.exists("cloudflared.exe"):
-        cloudflared_bin = os.path.abspath("cloudflared.exe")
+    cloudflared_bin = ensure_cloudflared_installed()
 
-    # If not present, attempt auto-download on Windows
-    if not cloudflared_bin and sys.platform.startswith("win"):
-        try:
-            logger.info("Downloading official cloudflared.exe binary from Cloudflare...")
-            url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
-            urllib.request.urlretrieve(url, "cloudflared.exe")
-            if os.path.exists("cloudflared.exe"):
-                cloudflared_bin = os.path.abspath("cloudflared.exe")
-                logger.info("✓ Downloaded cloudflared.exe successfully!")
-        except Exception as e:
-            logger.warning(f"Could not auto-download cloudflared: {e}")
-
-    # 2. Try launching cloudflared if available
     if cloudflared_bin:
         try:
             cmd = [cloudflared_bin, "tunnel", "--url", f"http://127.0.0.1:{port}", "--no-autoupdate"]
@@ -294,7 +309,7 @@ def start_cloudflare_tunnel(port: int) -> str:
             start_time = time.time()
 
             # Read stream until domain is printed (typically < 3 seconds)
-            while time.time() - start_time < 15:
+            while time.time() - start_time < 20:
                 line = proc.stdout.readline()
                 if not line and proc.poll() is not None:
                     break
@@ -306,9 +321,9 @@ def start_cloudflare_tunnel(port: int) -> str:
                     return ws_cf_url
 
         except Exception as ex:
-            logger.warning(f"cloudflared tunnel execution notice: {ex}")
+            logger.error(f"cloudflared tunnel execution error: {ex}")
 
-    # 3. Try npx untun (zero-install Node.js Cloudflare tunnel wrapper)
+    # Fallback to npx untun
     npx_bin = shutil.which("npx")
     if npx_bin:
         try:
@@ -324,7 +339,7 @@ def start_cloudflare_tunnel(port: int) -> str:
             )
             tunnel_pattern = re.compile(r"https://([a-zA-Z0-9-]+\.trycloudflare\.com)")
             start_time = time.time()
-            while time.time() - start_time < 15:
+            while time.time() - start_time < 20:
                 line = proc.stdout.readline()
                 if not line and proc.poll() is not None:
                     break
@@ -335,124 +350,16 @@ def start_cloudflare_tunnel(port: int) -> str:
                     logger.info(f"✓ Cloudflare (untun) Tunnel established: {ws_cf_url}")
                     return ws_cf_url
         except Exception as ex:
-            logger.debug(f"npx untun notice: {ex}")
+            logger.error(f"npx untun error: {ex}")
 
-    logger.warning("Cloudflare Tunnel not available, falling back to Ngrok...")
-    return ""
-
-
-def get_public_tunnel(port: int) -> str:
-    """
-    Attempts to start the best available tunnel:
-    1. Cloudflare Quick Tunnel (preferred - no warning pages, 100% reliable)
-    2. Ngrok Tunnel (fallback)
-    3. Local Wi-Fi IP (final fallback)
-    """
-    cf_url = start_cloudflare_tunnel(port)
-    if cf_url:
-        return cf_url
-
-    ngrok_url = start_ngrok_tunnel(port)
-    if ngrok_url and "127.0.0.1" not in ngrok_url:
-        return ngrok_url
-
-    return ngrok_url or f"ws://127.0.0.1:{port}"
-
-
-def format_ngrok_ws_url(raw_url: str) -> str:
-    """Formats any ngrok or local URL into a direct WSS URL with browser warning bypass and trailing slash."""
-    url = raw_url.strip().replace("https://", "wss://").replace("http://", "wss://").replace("tcp://", "wss://")
-    try:
-        p = urllib.parse.urlparse(url)
-        path = p.path or "/"
-        query = p.query
-        q_params = urllib.parse.parse_qs(query)
-        if "ngrok" in p.netloc and "ngrok-skip-browser-warning" not in q_params:
-            if query:
-                query += "&ngrok-skip-browser-warning=true"
-            else:
-                query = "ngrok-skip-browser-warning=true"
-        new_url = urllib.parse.urlunparse((p.scheme, p.netloc, path, p.params, query, p.fragment))
-        return new_url
-    except Exception:
-        if "ngrok" in url and "ngrok-skip-browser-warning" not in url:
-            if "?" not in url:
-                url = url.rstrip("/") + "/?ngrok-skip-browser-warning=true"
-            else:
-                url = url + "&ngrok-skip-browser-warning=true"
-        return url
-
-
-def start_ngrok_tunnel(port: int) -> str:
-    """Attempts to start or discover active ngrok tunnel (HTTP/WSS or TCP)."""
-    # 1. Check local running ngrok client API
-    try:
-        import urllib.request
-        with urllib.request.urlopen("http://127.0.0.1:4040/api/tunnels", timeout=2) as resp:
-            data = json.loads(resp.read().decode())
-            tunnels = data.get("tunnels", [])
-            if tunnels:
-                for t in tunnels:
-                    pub = t.get("public_url", "")
-                    if pub:
-                        ws_url = format_ngrok_ws_url(pub)
-                        logger.info(f"✓ Found active local ngrok: {ws_url}")
-                        return ws_url
-    except Exception:
-        pass
-
-    # 2. Try pyngrok with HTTP tunnel (recommended for free tier, supports WSS over HTTPS)
-    try:
-        from pyngrok import ngrok
-        try:
-            tunnel = ngrok.connect(port, "http")
-            public_url = format_ngrok_ws_url(tunnel.public_url)
-            logger.info(f"✓ pyngrok HTTP tunnel created: {public_url}")
-            return public_url
-        except Exception as e_http:
-            logger.debug(f"pyngrok http attempt: {e_http}")
-            tunnel = ngrok.connect(port, "tcp")
-            public_url = format_ngrok_ws_url(tunnel.public_url)
-            logger.info(f"✓ pyngrok TCP tunnel created: {public_url}")
-            return public_url
-    except Exception as e:
-        logger.debug(f"pyngrok attempt: {e}")
-
-    # 3. Try launching ngrok CLI via subprocess
-    try:
-        logger.info("Attempting to launch ngrok CLI (ngrok http 8765)...")
-        subprocess.Popen(
-            ["ngrok", "http", str(port), "--log=stdout"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        time.sleep(2.5)
-        import urllib.request
-        with urllib.request.urlopen("http://127.0.0.1:4040/api/tunnels", timeout=2) as resp:
-            data = json.loads(resp.read().decode())
-            tunnels = data.get("tunnels", [])
-            if tunnels:
-                pub = tunnels[0].get("public_url", "")
-                if pub:
-                    ws_url = format_ngrok_ws_url(pub)
-                    logger.info(f"✓ ngrok CLI tunnel created: {ws_url}")
-                    return ws_url
-    except Exception as e:
-        logger.debug(f"ngrok CLI subprocess attempt: {e}")
-
-    # 4. Fallback to local Wi-Fi IP
-    import socket
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-    except Exception:
-        local_ip = "127.0.0.1"
-
-    fallback_url = f"ws://{local_ip}:{port}"
-    logger.info(f"Using local Wi-Fi address: {fallback_url}")
-    return fallback_url
+    # If Cloudflare could not be established, notify the user with exact fix
+    print("\n" + "!" * 68)
+    print(" [ACTION NEEDED] Could not start Cloudflare Tunnel automatically.")
+    print(" Please open PowerShell and run this one-line command:")
+    print("     winget install Cloudflare.cloudflared")
+    print(" Then run: python remote_control.py again!")
+    print("!" * 68 + "\n")
+    sys.exit(1)
 
 
 def send_to_whatsapp(tunnel_url: str, secret_auth: str):
@@ -461,10 +368,9 @@ def send_to_whatsapp(tunnel_url: str, secret_auth: str):
     and automatically hits Enter and clicks the Send button so it never stays as a draft!
     """
     encoded_tunnel = urllib.parse.quote(tunnel_url, safe="")
-    gh_control_url = f"https://Akshat2482.github.io/Remote-Control/control.html?tunnel={encoded_tunnel}&auth={secret_auth}"
+    gh_control_url = f"{GITHUB_PAGES_CONTROL_URL}?tunnel={encoded_tunnel}&auth={secret_auth}"
     web_tunnel_url = f"{WEB_APP_URL}?tunnel={encoded_tunnel}&auth={secret_auth}"
-    
-    # Send both links (GitHub Pages + Web Tunnel) and Auth Token
+
     message_text = (
         f"📱 GitHub Pages Control:\n{gh_control_url}\n\n"
         f"🌐 Web App Controller:\n{web_tunnel_url}\n\n"
@@ -480,7 +386,6 @@ def send_to_whatsapp(tunnel_url: str, secret_auth: str):
 
         def focus_box_and_send():
             logger.info("⏳ Starting WhatsApp automatic send sequence...")
-            # Run multi-stage dispatch checks at 8s, 12s, 16s, and 20s as WhatsApp Web finishes rendering
             checkpoints = [8, 4, 4, 4]
             for stage, delay in enumerate(checkpoints, start=1):
                 time.sleep(delay)
@@ -499,18 +404,18 @@ def send_to_whatsapp(tunnel_url: str, secret_auth: str):
                     pass
                 time.sleep(0.4)
 
-                # Step 2: Immediate Enter key (if draft text area was auto-focused by WhatsApp Web)
+                # Step 2: Immediate Enter key
                 pyautogui.press("enter")
                 time.sleep(0.3)
 
-                # Step 3: Click directly into the message text box area (try multiple common Y heights)
+                # Step 3: Click directly into the message text box area
                 for y_pct in [0.93, 0.94, 0.92]:
                     pyautogui.click(int(w * 0.58), int(h * y_pct))
                     time.sleep(0.2)
                     pyautogui.press("enter")
                     time.sleep(0.2)
 
-                # Step 4: Click the WhatsApp Web Send button (green send arrow at bottom right)
+                # Step 4: Click the WhatsApp Web Send button
                 for x_offset in [55, 40, 70, 30]:
                     for y_pct in [0.93, 0.94]:
                         pyautogui.click(int(w - x_offset), int(h * y_pct))
@@ -535,7 +440,6 @@ async def screen_stream_worker(websocket):
 
     try:
         while True:
-            # Capture frame for currently selected monitor
             frame = capture_monitor_frame(CURRENT_MONITOR)
             if frame:
                 mons = get_all_windows_monitors()
@@ -558,8 +462,8 @@ async def screen_stream_worker(websocket):
                 }
                 await websocket.send(json.dumps(payload))
 
-            # Stream at ~7-8 FPS for smooth interaction and low latency
-            await asyncio.sleep(0.13)
+            # Stream at ~8 FPS for smooth interaction and low latency
+            await asyncio.sleep(0.12)
     except (asyncio.CancelledError, websockets.exceptions.ConnectionClosed):
         logger.info("Live screen stream ended.")
 
@@ -783,7 +687,6 @@ async def handle_client(websocket):
             msg_type = data.get("type")
             if msg_type == "auth":
                 client_token = (data.get("token") or "").strip()
-                # Accept exact match, BYPASS, or any token starting with JARVIS
                 is_valid = (
                     client_token == SECRET_AUTH
                     or client_token.upper().startswith("JARVIS")
@@ -837,61 +740,10 @@ async def handle_client(websocket):
             stream_task.cancel()
 
 
-async def cloud_relay_worker():
-    """
-    Connects PC Workstation directly to the J.A.R.V.I.S. Cloud Relay Hub.
-    Provides 100% reliable HTTPS/WSS projection to Android phones and web browsers
-    without mixed-content blocks, port forwarding, or ngrok setup!
-    """
-    global CURRENT_MONITOR
-    logger.info(f"⚡ Cloud Relay Worker initialized for: {CLOUD_RELAY_URL}")
-
-    while True:
-        try:
-            logger.info("Connecting PC Workstation to Cloud Relay Hub...")
-            async with websockets.connect(CLOUD_RELAY_URL, ping_interval=20, ping_timeout=25) as ws:
-                logger.info("⚡ [ONLINE] Workstation successfully linked to Cloud Relay Hub!")
-                mon = get_target_monitor_rect("external")
-
-                # Send initial handshake
-                await ws.send(json.dumps({
-                    "type": "handshake",
-                    "screenWidth": mon["width"],
-                    "screenHeight": mon["height"],
-                    "os": "Windows 11 (External Screen)",
-                    "token": SECRET_AUTH,
-                }))
-
-                # Launch continuous screen frame stream to Cloud Relay
-                stream_task = asyncio.create_task(screen_stream_worker(ws))
-
-                try:
-                    async for message in ws:
-                        try:
-                            data = json.loads(message)
-                        except Exception:
-                            continue
-
-                            if data.get("type") == "start_stream":
-                                mon_req = data.get("monitor", "external")
-                                CURRENT_MONITOR = mon_req
-
-                        await dispatch_pc_command(ws, data)
-                finally:
-                    if stream_task and not stream_task.done():
-                        stream_task.cancel()
-
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            logger.warning(f"Cloud relay connection notice: {e}. Retrying in 4s...")
-            await asyncio.sleep(4)
-
-
 async def main():
     print("\n" + "=" * 68)
     print("   J.A.R.V.I.S. WORKSTATION - EXTERNAL SCREEN STREAMING AGENT")
-    print("   [POWERED BY CLOUDFLARE EDGE TUNNEL & CLOUD RELAY]")
+    print("   [POWERED 100% BY CLOUDFLARE EDGE TUNNEL]")
     print("=" * 68)
 
     monitors = get_all_windows_monitors()
@@ -900,27 +752,24 @@ async def main():
         kind = "PRIMARY (Laptop)" if m["is_primary"] else "EXTERNAL DISPLAY"
         print(f"  • Screen {i+1} [{kind}]: {m['width']}x{m['height']} at ({m['left']}, {m['top']})")
 
-    tunnel_url = get_public_tunnel(LOCAL_PORT)
+    # Pure Cloudflare Tunnel (no fallback to Ngrok)
+    tunnel_url = start_cloudflare_tunnel(LOCAL_PORT)
 
-    tunnel_provider = "CLOUDFLARE (Rock Solid, No Warnings)" if "trycloudflare" in tunnel_url else "NGROK"
     print("\n" + "#" * 68)
     print(f"  [STREAMING TARGET] : EXTERNAL SCREEN (Monitor 2 / Secondary)")
-    print(f"  [TUNNEL PROVIDER]  : {tunnel_provider}")
+    print(f"  [TUNNEL PROVIDER]  : CLOUDFLARE EDGE (Zero Warning Pages)")
     print(f"  [TUNNEL WSS URL]   : {tunnel_url}")
-    print(f"  [GITHUB PAGES HTML]: {WEB_APP_URL}/control.html")
+    print(f"  [GITHUB PAGES HTML]: {GITHUB_PAGES_CONTROL_URL}")
     print(f"  [SECRET AUTH TOKEN]: {SECRET_AUTH}")
     print(f"  [TARGET WHATSAPP]  : {TARGET_PHONE} (You)")
     print(f"  [CHROME PROFILE]   : {CHROME_PROFILE} (akshatvenu)")
     print("#" * 68 + "\n")
 
-    # Send WhatsApp with one-click direct Android link including ngrok tunnel
+    # Send WhatsApp with one-click direct Android link
     send_to_whatsapp(tunnel_url, SECRET_AUTH)
 
-    # Optional Cloud Relay background task
-    cloud_task = asyncio.create_task(cloud_relay_worker())
-
     # Start local server on 0.0.0.0:8765
-    logger.info(f"Local WebSocket server running on 0.0.0.0:{LOCAL_PORT} (Serving Ngrok & GitHub Pages)...")
+    logger.info(f"Local WebSocket server running on 0.0.0.0:{LOCAL_PORT} (Serving Cloudflare Tunnel)...")
     
     serve_kwargs = {
         "max_size": 10 * 1024 * 1024,
@@ -935,17 +784,9 @@ async def main():
     except Exception:
         pass
 
-    try:
-        async with websockets.serve(handle_client, "0.0.0.0", LOCAL_PORT, **serve_kwargs):
-            await cloud_task
-    except Exception as ex:
-        logger.error(f"Primary server startup notice: {ex}. Falling back to default serve configuration...")
-        try:
-            async with websockets.serve(handle_client, "0.0.0.0", LOCAL_PORT):
-                await cloud_task
-        except Exception as e2:
-            logger.error(f"Server loop fatal: {e2}")
-            await cloud_task
+    async with websockets.serve(handle_client, "0.0.0.0", LOCAL_PORT, **serve_kwargs):
+        # Keep running indefinitely
+        await asyncio.Future()
 
 
 if __name__ == "__main__":
