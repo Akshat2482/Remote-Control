@@ -498,7 +498,31 @@ async function startServer() {
         })
       );
 
+      // Immediately transmit cached live screen frame if available so phone gets instant display
+      if (latestScreenFrame) {
+        ws.send(
+          JSON.stringify({
+            type: "screen_frame",
+            frame: latestScreenFrame,
+            activeMonitor: "external",
+          })
+        );
+      }
+
       ws.on("message", (msg) => {
+        try {
+          const parsed = JSON.parse(msg.toString());
+          if (parsed.type === "request_frame" && latestScreenFrame) {
+            ws.send(
+              JSON.stringify({
+                type: "screen_frame",
+                frame: latestScreenFrame,
+                activeMonitor: parsed.monitor || "external",
+              })
+            );
+          }
+        } catch (_) {}
+
         // Forward commands from Phone directly to PC
         if (pcClientSocket && pcClientSocket.readyState === WebSocket.OPEN) {
           pcClientSocket.send(msg.toString());

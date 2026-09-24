@@ -25,6 +25,8 @@ import json
 import logging
 import os
 import random
+import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -248,13 +250,137 @@ def open_in_akshatvenu_chrome(url: str, maximized: bool = True):
     webbrowser.open(url)
 
 
+def start_cloudflare_tunnel(port: int) -> str:
+    """
+    Starts a Cloudflare Quick Tunnel (TryCloudflare).
+    - 100% Free & instant (no account, no credit card required)
+    - Zero interstitial warning pages (eliminates WebSocket resets and drops)
+    - Unlimited high-speed edge bandwidth backed by Cloudflare
+    """
+    logger.info("⚡ Initializing Cloudflare Tunnel (TryCloudflare)...")
+    
+    # 1. Locate or obtain cloudflared binary
+    cloudflared_bin = shutil.which("cloudflared")
+    if not cloudflared_bin and os.path.exists("cloudflared.exe"):
+        cloudflared_bin = os.path.abspath("cloudflared.exe")
+
+    # If not present, attempt auto-download on Windows
+    if not cloudflared_bin and sys.platform.startswith("win"):
+        try:
+            logger.info("Downloading official cloudflared.exe binary from Cloudflare...")
+            url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+            urllib.request.urlretrieve(url, "cloudflared.exe")
+            if os.path.exists("cloudflared.exe"):
+                cloudflared_bin = os.path.abspath("cloudflared.exe")
+                logger.info("✓ Downloaded cloudflared.exe successfully!")
+        except Exception as e:
+            logger.warning(f"Could not auto-download cloudflared: {e}")
+
+    # 2. Try launching cloudflared if available
+    if cloudflared_bin:
+        try:
+            cmd = [cloudflared_bin, "tunnel", "--url", f"http://127.0.0.1:{port}", "--no-autoupdate"]
+            logger.info(f"Running: {' '.join(cmd)}")
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform.startswith("win") else 0
+            )
+
+            tunnel_pattern = re.compile(r"https://([a-zA-Z0-9-]+\.trycloudflare\.com)")
+            start_time = time.time()
+
+            # Read stream until domain is printed (typically < 3 seconds)
+            while time.time() - start_time < 15:
+                line = proc.stdout.readline()
+                if not line and proc.poll() is not None:
+                    break
+                match = tunnel_pattern.search(line)
+                if match:
+                    raw_cf_url = match.group(0)
+                    ws_cf_url = raw_cf_url.replace("https://", "wss://")
+                    logger.info(f"✓ Cloudflare Tunnel established: {ws_cf_url}")
+                    return ws_cf_url
+
+        except Exception as ex:
+            logger.warning(f"cloudflared tunnel execution notice: {ex}")
+
+    # 3. Try npx untun (zero-install Node.js Cloudflare tunnel wrapper)
+    npx_bin = shutil.which("npx")
+    if npx_bin:
+        try:
+            logger.info("Attempting Cloudflare tunnel via npx untun...")
+            cmd = ["npx", "--yes", "untun@latest", "tunnel", str(port)]
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform.startswith("win") else 0
+            )
+            tunnel_pattern = re.compile(r"https://([a-zA-Z0-9-]+\.trycloudflare\.com)")
+            start_time = time.time()
+            while time.time() - start_time < 15:
+                line = proc.stdout.readline()
+                if not line and proc.poll() is not None:
+                    break
+                match = tunnel_pattern.search(line)
+                if match:
+                    raw_cf_url = match.group(0)
+                    ws_cf_url = raw_cf_url.replace("https://", "wss://")
+                    logger.info(f"✓ Cloudflare (untun) Tunnel established: {ws_cf_url}")
+                    return ws_cf_url
+        except Exception as ex:
+            logger.debug(f"npx untun notice: {ex}")
+
+    logger.warning("Cloudflare Tunnel not available, falling back to Ngrok...")
+    return ""
+
+
+def get_public_tunnel(port: int) -> str:
+    """
+    Attempts to start the best available tunnel:
+    1. Cloudflare Quick Tunnel (preferred - no warning pages, 100% reliable)
+    2. Ngrok Tunnel (fallback)
+    3. Local Wi-Fi IP (final fallback)
+    """
+    cf_url = start_cloudflare_tunnel(port)
+    if cf_url:
+        return cf_url
+
+    ngrok_url = start_ngrok_tunnel(port)
+    if ngrok_url and "127.0.0.1" not in ngrok_url:
+        return ngrok_url
+
+    return ngrok_url or f"ws://127.0.0.1:{port}"
+
+
 def format_ngrok_ws_url(raw_url: str) -> str:
-    """Formats any ngrok or local URL into a direct WSS URL with browser warning bypass."""
-    url = raw_url.replace("https://", "wss://").replace("http://", "wss://").replace("tcp://", "wss://")
-    if "ngrok" in url and "ngrok-skip-browser-warning" not in url:
-        sep = "&" if "?" in url else "?"
-        url = f"{url}{sep}ngrok-skip-browser-warning=true"
-    return url
+    """Formats any ngrok or local URL into a direct WSS URL with browser warning bypass and trailing slash."""
+    url = raw_url.strip().replace("https://", "wss://").replace("http://", "wss://").replace("tcp://", "wss://")
+    try:
+        p = urllib.parse.urlparse(url)
+        path = p.path or "/"
+        query = p.query
+        q_params = urllib.parse.parse_qs(query)
+        if "ngrok" in p.netloc and "ngrok-skip-browser-warning" not in q_params:
+            if query:
+                query += "&ngrok-skip-browser-warning=true"
+            else:
+                query = "ngrok-skip-browser-warning=true"
+        new_url = urllib.parse.urlunparse((p.scheme, p.netloc, path, p.params, query, p.fragment))
+        return new_url
+    except Exception:
+        if "ngrok" in url and "ngrok-skip-browser-warning" not in url:
+            if "?" not in url:
+                url = url.rstrip("/") + "/?ngrok-skip-browser-warning=true"
+            else:
+                url = url + "&ngrok-skip-browser-warning=true"
+        return url
 
 
 def start_ngrok_tunnel(port: int) -> str:
@@ -331,19 +457,21 @@ def start_ngrok_tunnel(port: int) -> str:
 
 def send_to_whatsapp(tunnel_url: str, secret_auth: str):
     """
-    Opens WhatsApp in Chrome (Profile 14), focuses the chat window,
-    hits enter and clicks send.
-    Strict requirement: Send ONLY the one-click control URL and auth token, nothing else!
+    Opens WhatsApp in Chrome (Profile 14), sends BOTH GitHub Pages URL and Web App Tunnel URL,
+    and automatically hits Enter and clicks the Send button so it never stays as a draft!
     """
     encoded_tunnel = urllib.parse.quote(tunnel_url, safe="")
-    one_click_url = f"https://Akshat2482.github.io/Remote-Control/control.html?tunnel={encoded_tunnel}&auth={secret_auth}"
+    gh_control_url = f"https://Akshat2482.github.io/Remote-Control/control.html?tunnel={encoded_tunnel}&auth={secret_auth}"
+    web_tunnel_url = f"{WEB_APP_URL}?tunnel={encoded_tunnel}&auth={secret_auth}"
     
-    # Strictly only the URL and the auth token as requested!
-    message_text = f"{one_click_url}\n\nAuth: {secret_auth}"
+    # Send both links (GitHub Pages + Web Tunnel) and Auth Token
+    message_text = (
+        f"📱 GitHub Pages Control:\n{gh_control_url}\n\n"
+        f"🌐 Web App Controller:\n{web_tunnel_url}\n\n"
+        f"🔑 Auth: {secret_auth}"
+    )
 
     encoded_msg = urllib.parse.quote(message_text)
-    clean_phone = TARGET_PHONE.replace("+", "").replace(" ", "").replace("-", "")
-    whatsapp_url = f"https://web.whatsapp.com/send?phone={clean_phone}&text={encoded_msg}"
     clean_phone = TARGET_PHONE.replace("+", "").replace(" ", "").replace("-", "")
     whatsapp_url = f"https://web.whatsapp.com/send?phone={clean_phone}&text={encoded_msg}"
 
@@ -351,33 +479,48 @@ def send_to_whatsapp(tunnel_url: str, secret_auth: str):
         open_in_akshatvenu_chrome(whatsapp_url, maximized=True)
 
         def focus_box_and_send():
-            time.sleep(12)
-            w, h = pyautogui.size()
-            try:
-                subprocess.run(
-                    ["powershell", "-Command", "$ws = New-Object -ComObject WScript.Shell; $ws.AppActivate('Google Chrome')"],
-                    capture_output=True,
-                    timeout=3
-                )
-            except Exception:
-                pass
-            time.sleep(0.5)
+            logger.info("⏳ Starting WhatsApp automatic send sequence...")
+            # Run multi-stage dispatch checks at 8s, 12s, 16s, and 20s as WhatsApp Web finishes rendering
+            checkpoints = [8, 4, 4, 4]
+            for stage, delay in enumerate(checkpoints, start=1):
+                time.sleep(delay)
+                w, h = pyautogui.size()
 
-            box_x = int(w * 0.60)
-            box_y = int(h * 0.94)
-            pyautogui.click(box_x, box_y)
-            time.sleep(0.4)
-            pyautogui.press("enter")
+                # Step 1: Force focus Google Chrome & WhatsApp Web window
+                try:
+                    ps_script = (
+                        "$ws = New-Object -ComObject WScript.Shell; "
+                        "$ws.AppActivate('WhatsApp'); "
+                        "Start-Sleep -Milliseconds 250; "
+                        "$ws.AppActivate('Chrome');"
+                    )
+                    subprocess.run(["powershell", "-Command", ps_script], capture_output=True, timeout=3)
+                except Exception:
+                    pass
+                time.sleep(0.4)
 
-            send_btn_x = int(w - 55)
-            send_btn_y = int(h * 0.94)
-            pyautogui.click(send_btn_x, send_btn_y)
+                # Step 2: Immediate Enter key (if draft text area was auto-focused by WhatsApp Web)
+                pyautogui.press("enter")
+                time.sleep(0.3)
 
-            time.sleep(2.5)
-            pyautogui.click(box_x, box_y)
-            pyautogui.press("enter")
-            pyautogui.click(send_btn_x, send_btn_y)
-            logger.info("✓ Credentials sent to WhatsApp!")
+                # Step 3: Click directly into the message text box area (try multiple common Y heights)
+                for y_pct in [0.93, 0.94, 0.92]:
+                    pyautogui.click(int(w * 0.58), int(h * y_pct))
+                    time.sleep(0.2)
+                    pyautogui.press("enter")
+                    time.sleep(0.2)
+
+                # Step 4: Click the WhatsApp Web Send button (green send arrow at bottom right)
+                for x_offset in [55, 40, 70, 30]:
+                    for y_pct in [0.93, 0.94]:
+                        pyautogui.click(int(w - x_offset), int(h * y_pct))
+                        time.sleep(0.1)
+
+                # Step 5: Final Enter stroke
+                pyautogui.press("enter")
+                logger.info(f"✓ WhatsApp Enter/Send keystroke batch {stage}/{len(checkpoints)} dispatched.")
+
+            logger.info("✓ Completed WhatsApp automatic send routine!")
 
         threading.Thread(target=focus_box_and_send, daemon=True).start()
 
@@ -748,7 +891,7 @@ async def cloud_relay_worker():
 async def main():
     print("\n" + "=" * 68)
     print("   J.A.R.V.I.S. WORKSTATION - EXTERNAL SCREEN STREAMING AGENT")
-    print("   [POWERED BY NGROK WSS TUNNEL]")
+    print("   [POWERED BY CLOUDFLARE EDGE TUNNEL & CLOUD RELAY]")
     print("=" * 68)
 
     monitors = get_all_windows_monitors()
@@ -757,11 +900,13 @@ async def main():
         kind = "PRIMARY (Laptop)" if m["is_primary"] else "EXTERNAL DISPLAY"
         print(f"  • Screen {i+1} [{kind}]: {m['width']}x{m['height']} at ({m['left']}, {m['top']})")
 
-    tunnel_url = start_ngrok_tunnel(LOCAL_PORT)
+    tunnel_url = get_public_tunnel(LOCAL_PORT)
 
+    tunnel_provider = "CLOUDFLARE (Rock Solid, No Warnings)" if "trycloudflare" in tunnel_url else "NGROK"
     print("\n" + "#" * 68)
     print(f"  [STREAMING TARGET] : EXTERNAL SCREEN (Monitor 2 / Secondary)")
-    print(f"  [NGROK TUNNEL URL] : {tunnel_url}")
+    print(f"  [TUNNEL PROVIDER]  : {tunnel_provider}")
+    print(f"  [TUNNEL WSS URL]   : {tunnel_url}")
     print(f"  [GITHUB PAGES HTML]: {WEB_APP_URL}/control.html")
     print(f"  [SECRET AUTH TOKEN]: {SECRET_AUTH}")
     print(f"  [TARGET WHATSAPP]  : {TARGET_PHONE} (You)")

@@ -244,15 +244,15 @@ export default function App() {
       url = url.replace("tcp://", "wss://");
     }
 
-    // If using an ngrok tunnel on HTTPS page, ensure it uses wss:// to prevent mixed-content blocking
-    if (url.includes("ngrok") && url.startsWith("ws://") && window.location.protocol === "https:") {
+    // If using a cloudflare or ngrok tunnel on HTTPS page, ensure it uses wss:// to prevent mixed-content blocking
+    if ((url.includes("trycloudflare") || url.includes("ngrok")) && url.startsWith("ws://") && window.location.protocol === "https:") {
       url = url.replace("ws://", "wss://");
     }
 
-    // Only fallback to Cloud Relay if on HTTPS and url starts with plain insecure ws:// and NOT ngrok
-    if (window.location.protocol === "https:" && url.startsWith("ws://") && !url.includes("ngrok")) {
+    // Only fallback to Cloud Relay if on HTTPS and url starts with plain insecure ws:// and NOT cloudflare or ngrok
+    if (window.location.protocol === "https:" && url.startsWith("ws://") && !url.includes("ngrok") && !url.includes("trycloudflare")) {
       const secureRelay = `wss://${window.location.host}/ws/relay?role=phone`;
-      setRelayNotice("Switched to Cloud Relay (WSS) because plain local ws:// is blocked on HTTPS. Use an Ngrok wss:// tunnel for direct connection.");
+      setRelayNotice("Switched to Cloud Relay (WSS) because plain local ws:// is blocked on HTTPS. Use a Cloudflare or Ngrok wss:// tunnel for direct connection.");
       url = secureRelay;
     }
 
@@ -281,7 +281,9 @@ export default function App() {
         ws.send(JSON.stringify({ type: "auth", token }));
         ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitorRef.current }));
         ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitorRef.current }));
-        const connLabel = url.includes("ngrok")
+        const connLabel = url.includes("trycloudflare")
+          ? "Cloudflare Edge Tunnel (High Performance)"
+          : url.includes("ngrok")
           ? `Ngrok Tunnel (${url})`
           : url.includes("ws/relay")
           ? "Secure Cloud Relay"
@@ -297,7 +299,7 @@ export default function App() {
               setIsConnected(true);
               ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitorRef.current }));
               ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitorRef.current }));
-              const connLabel = url.includes("ngrok") ? "Ngrok" : "Cloud Relay";
+              const connLabel = url.includes("trycloudflare") ? "Cloudflare Edge" : url.includes("ngrok") ? "Ngrok" : "Cloud Relay";
               addJarvisMessage(`Workstation is ONLINE via ${connLabel}. Streaming monitor feed.`);
             } else {
               setIsConnected(false);
@@ -946,7 +948,9 @@ export default function App() {
                     />
                     <span className="truncate">
                       {isConnected
-                        ? tunnelUrl.includes("ngrok")
+                        ? tunnelUrl.includes("trycloudflare")
+                          ? "Online (Cloudflare)"
+                          : tunnelUrl.includes("ngrok")
                           ? "Online (Ngrok)"
                           : "Online (Cloud Relay)"
                         : isConnecting
@@ -1379,11 +1383,11 @@ export default function App() {
                 type="text"
                 value={tunnelUrl}
                 onChange={(e) => setTunnelUrl(e.target.value)}
-                placeholder="wss://0.tcp.ngrok.io:12345 or wss://xxxx.ngrok-free.app"
+                placeholder="wss://xxxx.trycloudflare.com or wss://xxxx.ngrok-free.app"
                 className="w-full rounded-xl bg-white border border-slate-300 px-3 py-2.5 text-xs font-mono text-slate-900 focus:border-cyan-500 focus:outline-none shadow-xs"
               />
               <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                <span>Supports Ngrok HTTP (wss://) &amp; TCP tunnels</span>
+                <span>Supports Cloudflare Tunnel &amp; Ngrok (wss://)</span>
                 <button
                   onClick={() => {
                     const defaultProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -1406,7 +1410,7 @@ export default function App() {
                 type="text"
                 value={secretAuth}
                 onChange={(e) => setSecretAuth(e.target.value)}
-                placeholder="JARVIS-7749"
+                placeholder="JARVIS-5436"
                 className="w-full rounded-xl bg-white border border-slate-300 px-3 py-2.5 text-xs font-mono text-slate-900 focus:border-cyan-500 focus:outline-none shadow-xs"
               />
             </div>
@@ -1422,7 +1426,7 @@ export default function App() {
                   disabled={isConnecting}
                   className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold font-mono text-xs active:scale-95 transition-all text-center shadow-md cursor-pointer"
                 >
-                  {isConnecting ? "Connecting..." : "Connect Ngrok Tunnel"}
+                  {isConnecting ? "Connecting..." : "Connect Tunnel"}
                 </button>
 
                 <a

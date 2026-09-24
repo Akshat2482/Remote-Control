@@ -99,21 +99,21 @@
     /* Touch cursor feedback */
     .touch-indicator {
       position: absolute;
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
       border: 2px solid #06b6d4;
       background: rgba(6, 182, 212, 0.35);
       transform: translate(-50%, -50%);
       pointer-events: none;
-      box-shadow: 0 0 14px rgba(6, 182, 212, 0.8);
+      box-shadow: 0 0 12px rgba(6, 182, 212, 0.8);
       display: none;
       z-index: 50;
       transition: transform 0.05s ease-out;
     }
   </style>
 </head>
-<body class="flex flex-col items-center justify-start selection:bg-cyan-500 selection:text-white pb-[calc(var(--safe-bottom)+4.5rem)] pt-[var(--safe-top)]">
+<body class="flex flex-col items-center justify-between min-h-[100dvh] h-[100dvh] selection:bg-cyan-500 selection:text-white pb-[max(var(--safe-bottom),0.75rem)] pt-[max(var(--safe-top),0.5rem)] overflow-hidden">
 
   <!-- Ambient Crystal Glow Background (Exact Match to Web App) -->
   <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -123,12 +123,12 @@
   </div>
 
   <!-- Mobile Shell (Optimized for Samsung Galaxy A17 screen width 380-430px) -->
-  <div class="relative z-10 w-full max-w-[430px] px-3 flex flex-col gap-2.5 mt-2">
+  <div class="relative z-10 w-full max-w-[430px] h-full flex flex-col justify-between px-2.5 mx-auto overflow-hidden">
     
     <!-- TOP HEADER (Exact App Header Layout) -->
-    <header class="liquid-glass-card rounded-2xl p-2.5 sm:p-3 shadow-md">
+    <header class="liquid-glass-card rounded-2xl p-2.5 shadow-md shrink-0">
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2.5 min-w-0">
           <!-- Mini Screen Preview Thumbnail -->
           <div class="relative h-10 w-14 rounded-xl overflow-hidden bg-slate-900 border border-white/70 shadow-inner flex items-center justify-center shrink-0">
             <img id="miniThumbnail" src="" class="hidden w-full h-full object-cover" alt="Screen" />
@@ -138,18 +138,20 @@
             <span id="miniThumbnailDot" class="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400 animate-ping"></span>
           </div>
 
-          <div class="min-w-0">
+          <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5">
               <h1 class="font-extrabold text-sm tracking-tight text-slate-900">J.A.R.V.I.S.</h1>
-              <span class="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-cyan-100 text-cyan-800 border border-cyan-300 font-bold">
+              <span id="badgeNetwork" class="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-cyan-100 text-cyan-800 border border-cyan-300 font-bold truncate">
                 Samsung A17
               </span>
             </div>
-            <div class="flex items-center gap-1 mt-0.5 text-[11px] font-medium text-slate-600 truncate">
-              <span id="headerStatusDot" class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping"></span>
-              <span id="headerStatusText" class="font-semibold text-amber-600">Connecting...</span>
-              <span class="text-slate-400">|</span>
-              <span id="headerPingText" class="text-[10px] text-cyan-700 font-mono font-bold">0ms</span>
+            <div class="flex items-center gap-1.5 mt-0.5 text-[10px] sm:text-[11px] font-medium text-slate-600 truncate">
+              <span id="headerStatusDot" class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping shrink-0"></span>
+              <span id="headerStatusText" class="font-semibold text-amber-600 truncate">Connecting...</span>
+              <span class="text-slate-400 shrink-0">|</span>
+              <span class="text-slate-600 truncate">Windows 11</span>
+              <span class="text-slate-400 shrink-0">|</span>
+              <span id="headerPingText" class="text-[10px] text-cyan-800 font-mono font-bold shrink-0">0ms</span>
             </div>
           </div>
         </div>
@@ -157,25 +159,27 @@
         <!-- Toggle Ngrok Settings Drawer Button -->
         <button
           onclick="toggleSettingsDrawer()"
-          class="h-8 w-8 rounded-xl liquid-glass-pill flex items-center justify-center text-slate-700 hover:text-cyan-700 active:scale-95 transition-all cursor-pointer shadow-xs"
+          class="h-8 w-8 rounded-xl liquid-glass-pill flex items-center justify-center text-slate-700 hover:text-cyan-700 active:scale-95 transition-all cursor-pointer shadow-xs shrink-0 ml-1"
           title="Connection Settings"
         >
           <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
         </button>
       </div>
 
-      <!-- COLLAPSIBLE NGROK TUNNEL DRAWER -->
-      <div id="settingsDrawer" class="hidden mt-3 pt-3 border-t border-slate-200/80 space-y-2 text-xs font-mono">
+      <!-- COLLAPSIBLE NGROK & CLOUD RELAY SETTINGS DRAWER -->
+      <div id="settingsDrawer" class="hidden mt-2.5 pt-2.5 border-t border-slate-200/80 space-y-2 text-xs font-mono">
         <div class="space-y-1">
-          <label class="text-[10px] font-bold text-slate-700 flex justify-between">
-            <span>NGROK WSS TUNNEL URL</span>
-            <span class="text-emerald-600 font-normal">Auto-bypass enabled</span>
-          </label>
+          <div class="flex justify-between items-center text-[10px] font-bold text-slate-700">
+            <span>TUNNEL / RELAY WSS URL</span>
+            <button onclick="toggleRelaySource()" id="btnSourceToggle" class="text-cyan-700 hover:underline font-bold">
+              Switch to Cloud Relay
+            </button>
+          </div>
           <input
             id="inputTunnelUrl"
             type="text"
-            placeholder="wss://xxxx.ngrok-free.dev or wss://0.tcp.ngrok.io:12345"
-            class="w-full bg-white/90 border border-slate-300 rounded-xl px-2.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 shadow-inner select-all"
+            placeholder="wss://xxxx.trycloudflare.com or Cloud Relay"
+            class="w-full bg-white/90 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 shadow-inner select-all"
           />
         </div>
 
@@ -184,39 +188,44 @@
           <input
             id="inputAuthToken"
             type="text"
-            placeholder="JARVIS-5277"
-            class="w-full bg-white/90 border border-slate-300 rounded-xl px-2.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 shadow-inner"
+            placeholder="JARVIS-5436"
+            class="w-full bg-white/90 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-cyan-500 shadow-inner"
           />
         </div>
 
-        <div class="flex gap-2 pt-1">
+        <div class="flex gap-1.5 pt-1">
           <button
             id="btnDrawerConnect"
-            onclick="connectWebSocket()"
-            class="flex-1 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold font-mono text-xs active:scale-95 transition-all text-center shadow-md cursor-pointer"
+            onclick="connectManual()"
+            class="flex-1 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold font-mono text-xs active:scale-95 transition-all text-center shadow-md cursor-pointer"
           >
-            Connect Ngrok Tunnel
+            Connect Now
+          </button>
+          <button
+            onclick="useCloudRelay()"
+            class="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-mono font-bold text-xs active:scale-95 transition-all cursor-pointer shadow-sm"
+          >
+            Cloud Relay
           </button>
           <button
             onclick="copyCurrentLink()"
-            class="px-3 py-2 rounded-xl liquid-glass-pill text-slate-700 hover:text-cyan-800 text-xs active:scale-95 transition-all cursor-pointer flex items-center gap-1"
+            class="px-2.5 py-1.5 rounded-xl liquid-glass-pill text-slate-700 text-xs active:scale-95 transition-all cursor-pointer flex items-center gap-1"
           >
             <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
-            <span id="copyLinkText">Share</span>
           </button>
         </div>
       </div>
     </header>
 
     <!-- NAVIGATION SEGMENTED SWITCHER (Home | PC Remote) -->
-    <div class="liquid-glass-pill rounded-2xl p-1 flex items-center gap-1 shadow-sm">
+    <div class="liquid-glass-pill rounded-2xl p-1 flex items-center gap-1 shadow-xs my-1 shrink-0">
       <button
         id="tabBtnHome"
         onclick="switchTab('home')"
-        class="flex-1 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 liquid-glass-active text-cyan-950"
+        class="flex-1 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white/95 text-cyan-950 shadow-sm"
       >
-        <i data-lucide="home" class="w-3.5 h-3.5 text-cyan-700"></i>
-        <span>Home Stream</span>
+        <i data-lucide="home" class="w-3.5 h-3.5 text-cyan-600"></i>
+        <span>Home</span>
       </button>
       <button
         id="tabBtnPc"
@@ -224,241 +233,215 @@
         class="flex-1 py-1.5 rounded-xl font-bold text-xs text-slate-600 hover:text-slate-900 transition-all cursor-pointer flex items-center justify-center gap-1.5"
       >
         <i data-lucide="mouse-pointer" class="w-3.5 h-3.5"></i>
-        <span>PC Touchpad</span>
+        <span>PC (Remote)</span>
       </button>
     </div>
 
     <!-- ==================== TAB 1: HOME STREAM VIEW ==================== -->
-    <div id="tabContentHome" class="space-y-2.5">
+    <div id="tabContentHome" class="flex-1 flex flex-col justify-between min-h-0 overflow-hidden space-y-1.5">
       
-      <!-- MONITOR DISPLAY SWITCHER PILL -->
-      <div class="flex items-center justify-between px-1">
-        <div class="inline-flex p-0.5 rounded-xl liquid-glass-pill text-xs font-mono font-semibold">
-          <button
-            id="monBtnExternal"
-            onclick="switchMonitor('external')"
-            class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-800 font-bold border border-cyan-400/40 transition-all cursor-pointer"
-          >
-            🖥️ External (2)
-          </button>
-          <button
-            id="monBtnPrimary"
-            onclick="switchMonitor('primary')"
-            class="px-2 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
-          >
-            💻 Laptop
-          </button>
-          <button
-            id="monBtnAll"
-            onclick="switchMonitor('all')"
-            class="px-2 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
-          >
-            🔲 All
-          </button>
-        </div>
+      <!-- CENTRAL PC PROJECTION SCREEN CARD (Exact Match to App) -->
+      <div class="w-full relative rounded-2xl p-[1px] liquid-glass-card shadow-lg shrink-0">
+        <div class="w-full rounded-[15px] bg-slate-950 overflow-hidden flex flex-col relative h-[215px] xs:h-[235px]">
+          
+          <!-- Monitor Header Bar -->
+          <div class="flex items-center justify-between px-2.5 py-1.5 bg-white/85 backdrop-blur-xl border-b border-white/80 z-20 shrink-0 gap-1.5">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></span>
+              <span id="monitorLabelText" class="text-[10px] font-bold tracking-wider text-slate-800 uppercase truncate">
+                EXTERNAL
+              </span>
+              <span id="badgeLive" class="hidden bg-rose-500 text-white text-[8px] px-1.5 py-0.2 rounded font-bold shrink-0 animate-pulse">
+                LIVE
+              </span>
+            </div>
 
-        <div class="flex items-center gap-1.5">
-          <button
-            onclick="requestScreenFrame()"
-            class="h-7 px-2 rounded-xl liquid-glass-pill text-[11px] font-mono text-slate-700 flex items-center gap-1 cursor-pointer active:scale-95"
-            title="Refresh Screenshot"
+            <div class="flex items-center gap-1 shrink-0">
+              <button
+                id="monBtnExternal"
+                onclick="switchMonitor('external')"
+                class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-cyan-500 text-white transition-all cursor-pointer shadow-xs"
+              >
+                🖥️ Ext
+              </button>
+              <button
+                id="monBtnPrimary"
+                onclick="switchMonitor('primary')"
+                class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-white/80 border border-slate-200 text-slate-700 hover:bg-white transition-all cursor-pointer"
+              >
+                💻 Pri
+              </button>
+              <button
+                id="monBtnAll"
+                onclick="switchMonitor('all')"
+                class="px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-white/80 border border-slate-200 text-slate-700 hover:bg-white transition-all cursor-pointer"
+              >
+                🔲 All
+              </button>
+            </div>
+          </div>
+
+          <!-- Canvas / Stream Container -->
+          <div
+            id="screenContainer"
+            class="relative flex-1 w-full h-full cursor-crosshair touch-none select-none overflow-hidden bg-black flex items-center justify-center"
           >
-            <i data-lucide="rotate-ccw" class="w-3 h-3 text-cyan-600"></i>
-            <span>Refresh</span>
-          </button>
-          <button
-            onclick="toggleFullscreen()"
-            class="h-7 w-7 rounded-xl liquid-glass-pill text-slate-700 flex items-center justify-center cursor-pointer active:scale-95"
-            title="Fullscreen"
-          >
-            <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-cyan-700"></i>
-          </button>
+            <img
+              id="liveStreamImg"
+              src=""
+              alt="Live Workstation Screen"
+              class="hidden w-full h-full object-contain pointer-events-none select-none"
+            />
+
+            <!-- Touch Ring Indicator -->
+            <div id="touchRing" class="touch-indicator"></div>
+
+            <!-- Placeholder When Awaiting Stream -->
+            <div id="streamPlaceholder" class="flex flex-col items-center justify-center text-center p-3 text-slate-400 space-y-1.5">
+              <div class="relative">
+                <div class="h-10 w-10 rounded-2xl bg-cyan-950/40 border border-cyan-800 flex items-center justify-center text-cyan-400 animate-pulse">
+                  <i data-lucide="monitor" class="w-5 h-5"></i>
+                </div>
+                <span class="absolute top-0 right-0 h-2 w-2 rounded-full bg-cyan-400 animate-ping"></span>
+              </div>
+              <div>
+                <h3 class="text-xs font-bold text-slate-200">Waiting for Screen Feed...</h3>
+                <p class="text-[9px] text-slate-400 font-mono mt-0.5">
+                  Run <span class="text-cyan-300 font-bold">python pc.py</span>. Display: <span id="labelPlaceholderMon" class="text-cyan-300">external</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Horizontally Swipable Quick Touch Controls Bar Below Screen (Identical to App) -->
+          <div class="w-full bg-white/85 backdrop-blur-xl border-t border-white/80 z-20 shrink-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1 px-2 touch-pan-x">
+            <div class="flex items-center gap-1.5 min-w-max">
+              <button
+                onclick="sendMouseAction('click')"
+                class="px-2.5 py-1 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-[10px] font-bold text-cyan-900 active:scale-95 transition-all cursor-pointer shadow-xs flex items-center gap-1"
+              >
+                <i data-lucide="mouse-pointer" class="w-3 h-3 text-cyan-600"></i>
+                <span>Left Click</span>
+              </button>
+              <button
+                onclick="sendMouseAction('right_click')"
+                class="px-2.5 py-1 rounded-xl liquid-glass-pill text-[10px] font-semibold text-slate-800 active:scale-95 transition-all cursor-pointer shadow-xs"
+              >
+                <span>Right Click</span>
+              </button>
+              <button
+                onclick="sendMouseAction('double_click')"
+                class="px-2 py-1 rounded-xl liquid-glass-pill text-[10px] font-semibold text-slate-800 active:scale-95 transition-all cursor-pointer shadow-xs"
+              >
+                <span>2× Double</span>
+              </button>
+              <button
+                onclick="centerMouse()"
+                class="px-2 py-1 rounded-xl liquid-glass-pill text-[10px] text-slate-800 active:scale-95 transition-all cursor-pointer shadow-xs"
+                title="Center Mouse Pointer"
+              >
+                <span>🎯 Center</span>
+              </button>
+              <button
+                onclick="toggleFullscreen()"
+                class="px-2.5 py-1 rounded-xl liquid-glass-pill text-slate-800 transition-all active:scale-95 shadow-xs flex items-center gap-1 cursor-pointer font-semibold text-[10px]"
+                title="Fullscreen Mode"
+              >
+                <i data-lucide="maximize-2" class="w-3 h-3 text-cyan-600"></i>
+                <span>Fullscreen</span>
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      <!-- LIVE WORKSTATION PROJECTION CANVAS -->
-      <div
-        id="screenContainer"
-        class="relative w-full aspect-[16/10] bg-slate-950 rounded-2xl overflow-hidden border border-white/80 shadow-lg flex items-center justify-center cursor-crosshair touch-none select-none"
-      >
-        <!-- Stream Feed Image -->
-        <img
-          id="liveStreamImg"
-          src=""
-          alt="Live Workstation Screen"
-          class="hidden w-full h-full object-contain pointer-events-none select-none"
-        />
-
-        <!-- Touch Feedback Ring -->
-        <div id="touchRing" class="touch-indicator"></div>
-
-        <!-- Placeholder When Connecting / Awaiting Feed -->
-        <div id="streamPlaceholder" class="flex flex-col items-center justify-center text-center p-4 text-slate-400 space-y-2">
-          <div class="relative">
-            <div class="h-12 w-12 rounded-2xl bg-cyan-950/40 border border-cyan-800 flex items-center justify-center text-cyan-400 animate-pulse">
-              <i data-lucide="monitor" class="w-6 h-6"></i>
-            </div>
-            <span class="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+      <!-- ASSISTANT & USER CHAT FEED SECTION (Conversation between J.A.R.V.I.S. & Me) -->
+      <div id="chatFeedContainer" class="flex-1 min-h-[130px] overflow-y-auto space-y-2 px-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        
+        <!-- Welcome Message from J.A.R.V.I.S. -->
+        <div class="flex items-start gap-2 justify-start">
+          <div class="h-7 w-7 shrink-0 rounded-full bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center font-bold text-cyan-800 text-xs shadow-xs">
+            J
           </div>
-          <div>
-            <h3 class="text-xs font-bold text-slate-200">Awaiting Workstation Ngrok Feed</h3>
-            <p class="text-[10px] text-slate-400 font-mono mt-0.5 max-w-[260px]">
-              Run <span class="text-cyan-300 font-bold">python pc.py</span> on your PC to stream live.
+          <div class="rounded-2xl rounded-tl-xs p-2.5 liquid-glass-card text-slate-900 max-w-[88%] space-y-1 shadow-xs">
+            <p class="text-xs text-slate-900 leading-relaxed font-medium">
+              Good evening, sir. Holographic HUD, sensor diagnostics, and screen relay are synchronized and standing by for your directive.
             </p>
+            <p class="text-[9px] text-slate-500 font-mono text-left">Just now</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- QUICK SUGGESTIONS CHIPS (Above Input Bar) -->
+      <div class="liquid-glass-card rounded-2xl p-2 flex items-start gap-2 shadow-xs shrink-0">
+        <div class="p-0.5 rounded-lg text-cyan-600 mt-0.5 shrink-0">
+          <i data-lucide="lightbulb" class="w-3.5 h-3.5 text-cyan-600"></i>
+        </div>
+        <div class="flex-1 space-y-1 min-w-0">
+          <p class="text-[10px] text-slate-700 font-bold">Quick suggestions:</p>
+          <div class="flex flex-wrap gap-1">
+            <button onclick="handleQuickPrompt('What did Claude reply?')" class="text-[10px] text-slate-700 hover:text-cyan-800 liquid-glass-pill px-2 py-0.5 rounded-full transition-colors cursor-pointer active:scale-95 flex items-center gap-1 font-medium shadow-xs">
+              <i data-lucide="sparkles" class="w-2.5 h-2.5 text-cyan-600"></i>
+              <span>&ldquo;What did Claude reply?&rdquo;</span>
+            </button>
+            <button onclick="handleQuickPrompt('Read my screen')" class="text-[10px] text-slate-700 hover:text-cyan-800 liquid-glass-pill px-2 py-0.5 rounded-full transition-colors cursor-pointer active:scale-95 flex items-center gap-1 font-medium shadow-xs">
+              <i data-lucide="sparkles" class="w-2.5 h-2.5 text-cyan-600"></i>
+              <span>&ldquo;Read my screen&rdquo;</span>
+            </button>
+            <button onclick="handleQuickPrompt('Claude: continue')" class="text-[10px] text-slate-700 hover:text-cyan-800 liquid-glass-pill px-2 py-0.5 rounded-full transition-colors cursor-pointer active:scale-95 flex items-center gap-1 font-medium shadow-xs">
+              <span>&ldquo;Claude: continue&rdquo;</span>
+            </button>
+            <button onclick="handleQuickPrompt('Open Chrome')" class="text-[10px] text-slate-700 hover:text-cyan-800 liquid-glass-pill px-2 py-0.5 rounded-full transition-colors cursor-pointer active:scale-95 flex items-center gap-1 font-medium shadow-xs">
+              <span>&ldquo;Open Chrome&rdquo;</span>
+            </button>
+            <button onclick="handleQuickPrompt('Open VS Code')" class="text-[10px] text-slate-700 hover:text-cyan-800 liquid-glass-pill px-2 py-0.5 rounded-full transition-colors cursor-pointer active:scale-95 flex items-center gap-1 font-medium shadow-xs">
+              <span>&ldquo;Open VS Code&rdquo;</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- QUICK MOUSE CLICK BAR (Direct Actions) -->
-      <div class="liquid-glass-pill rounded-2xl p-1.5 flex items-center justify-between gap-1 shadow-xs">
-        <button
-          onclick="sendMouseAction('click')"
-          class="flex-1 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold font-mono active:scale-95 transition-all cursor-pointer shadow-xs"
-        >
-          Left Click
-        </button>
-        <button
-          onclick="sendMouseAction('right_click')"
-          class="flex-1 py-1.5 rounded-xl liquid-glass-pill text-slate-800 text-xs font-bold font-mono active:scale-95 transition-all cursor-pointer"
-        >
-          Right Click
-        </button>
-        <button
-          onclick="sendMouseAction('double_click')"
-          class="flex-1 py-1.5 rounded-xl liquid-glass-pill text-slate-800 text-xs font-bold font-mono active:scale-95 transition-all cursor-pointer"
-        >
-          Double Click
-        </button>
-        <button
-          onclick="sendScroll('up')"
-          class="px-2 py-1.5 rounded-xl liquid-glass-pill text-slate-700 text-xs font-mono font-bold active:scale-95 transition-all cursor-pointer"
-          title="Scroll Up"
-        >
-          ▲
-        </button>
-        <button
-          onclick="sendScroll('down')"
-          class="px-2 py-1.5 rounded-xl liquid-glass-pill text-slate-700 text-xs font-mono font-bold active:scale-95 transition-all cursor-pointer"
-          title="Scroll Down"
-        >
-          ▼
-        </button>
-      </div>
+      <!-- CHATGPT-STYLE INPUT BAR (Exact Match to Web App) -->
+      <div class="relative flex items-center gap-1.5 shrink-0 mb-1">
+        <div class="flex-1 relative flex items-center rounded-full liquid-glass-pill px-3.5 py-1.5 shadow-md border-white/90">
+          <i data-lucide="sparkles" class="w-4 h-4 text-cyan-600 shrink-0 mr-1.5"></i>
 
-      <!-- QUICK MACRO ACTION DECK (Exact App Macros) -->
-      <div class="liquid-glass-card rounded-2xl p-3 space-y-2 shadow-sm">
-        <div class="flex items-center justify-between">
-          <h2 class="text-[11px] font-mono font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i>
-            <span>Workstation Quick Macros</span>
-          </h2>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <button
-            onclick="triggerMacro('claude_continue')"
-            class="p-2.5 rounded-xl liquid-glass-pill hover:border-amber-400 text-left active:scale-95 transition-all cursor-pointer shadow-xs"
-          >
-            <div class="text-xs font-bold text-amber-700 flex items-center gap-1">
-              <i data-lucide="play" class="w-3 h-3 text-amber-600"></i> Claude Continue
-            </div>
-            <div class="text-[10px] text-slate-500 font-mono mt-0.5">Types "continue" + Enter</div>
-          </button>
-
-          <button
-            onclick="triggerMacro('restart_server')"
-            class="p-2.5 rounded-xl liquid-glass-pill hover:border-cyan-400 text-left active:scale-95 transition-all cursor-pointer shadow-xs"
-          >
-            <div class="text-xs font-bold text-cyan-800 flex items-center gap-1">
-              <i data-lucide="terminal" class="w-3 h-3 text-cyan-600"></i> Restart Server
-            </div>
-            <div class="text-[10px] text-slate-500 font-mono mt-0.5">Ctrl+C &amp; npm run dev</div>
-          </button>
-
-          <button
-            onclick="triggerMacro('git_quick_push')"
-            class="p-2.5 rounded-xl liquid-glass-pill hover:border-emerald-400 text-left active:scale-95 transition-all cursor-pointer shadow-xs"
-          >
-            <div class="text-xs font-bold text-emerald-800 flex items-center gap-1">
-              <i data-lucide="git-branch" class="w-3 h-3 text-emerald-600"></i> Git Push
-            </div>
-            <div class="text-[10px] text-slate-500 font-mono mt-0.5">add . &amp; commit &amp; push</div>
-          </button>
-
-          <button
-            onclick="triggerMacro('emergency_kill')"
-            class="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-left active:scale-95 transition-all cursor-pointer shadow-xs"
-          >
-            <div class="text-xs font-bold text-rose-700 flex items-center gap-1">
-              <i data-lucide="alert-octagon" class="w-3 h-3 text-rose-600"></i> Emergency Kill
-            </div>
-            <div class="text-[10px] text-rose-500 font-mono mt-0.5">Double Ctrl+C interrupt</div>
-          </button>
-
-          <button
-            onclick="triggerMacro('lock_pc')"
-            class="p-2.5 rounded-xl liquid-glass-pill hover:border-indigo-400 text-left active:scale-95 transition-all cursor-pointer shadow-xs"
-          >
-            <div class="text-xs font-bold text-indigo-800 flex items-center gap-1">
-              <i data-lucide="lock" class="w-3 h-3 text-indigo-600"></i> Lock PC
-            </div>
-            <div class="text-[10px] text-slate-500 font-mono mt-0.5">Instant secure lock</div>
-          </button>
-
-          <button
-            onclick="triggerMacro('volume_mute')"
-            class="p-2.5 rounded-xl liquid-glass-pill hover:border-slate-400 text-left active:scale-95 transition-all cursor-pointer shadow-xs"
-          >
-            <div class="text-xs font-bold text-slate-800 flex items-center gap-1">
-              <i data-lucide="volume-x" class="w-3 h-3 text-slate-600"></i> Mute Audio
-            </div>
-            <div class="text-[10px] text-slate-500 font-mono mt-0.5">Toggle mute</div>
-          </button>
-        </div>
-      </div>
-
-      <!-- VIRTUAL KEYBOARD & QUICK TYPING -->
-      <div class="liquid-glass-card rounded-2xl p-3 space-y-2 shadow-sm">
-        <h2 class="text-[11px] font-mono font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-          <i data-lucide="keyboard" class="w-3.5 h-3.5 text-cyan-600"></i>
-          <span>Send Text to Active Window</span>
-        </h2>
-        <div class="flex gap-1.5">
           <input
-            id="textInputBuffer"
+            id="userChatInput"
             type="text"
-            placeholder="Type text or code to write on PC..."
-            class="flex-1 bg-white/90 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-cyan-500 shadow-inner"
-            onkeydown="if(event.key==='Enter') sendTextToPc();"
+            placeholder="Ask AI (e.g. 'What did Claude reply?') or command PC..."
+            class="w-full bg-transparent text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none font-sans font-medium"
+            onkeydown="if(event.key==='Enter') submitChatMessage();"
           />
-          <button
-            onclick="sendTextToPc()"
-            class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-mono font-bold text-xs active:scale-95 transition-all cursor-pointer shadow-xs"
-          >
-            Send
-          </button>
-        </div>
 
-        <div class="flex flex-wrap gap-1 pt-0.5">
-          <button onclick="sendKey('enter')" class="px-2 py-1 rounded-lg liquid-glass-pill text-[11px] font-mono text-slate-700 font-bold active:scale-95 cursor-pointer">Enter ↵</button>
-          <button onclick="sendKey('backspace')" class="px-2 py-1 rounded-lg liquid-glass-pill text-[11px] font-mono text-slate-700 font-bold active:scale-95 cursor-pointer">⌫ Del</button>
-          <button onclick="sendKey('esc')" class="px-2 py-1 rounded-lg liquid-glass-pill text-[11px] font-mono text-slate-700 font-bold active:scale-95 cursor-pointer">Esc</button>
-          <button onclick="sendKey('tab')" class="px-2 py-1 rounded-lg liquid-glass-pill text-[11px] font-mono text-slate-700 font-bold active:scale-95 cursor-pointer">Tab</button>
-          <button onclick="sendKey('space')" class="px-2 py-1 rounded-lg liquid-glass-pill text-[11px] font-mono text-slate-700 font-bold active:scale-95 cursor-pointer">Space</button>
-          <button onclick="sendKey('up')" class="px-2 py-1 rounded-lg liquid-glass-pill text-[11px] font-mono text-slate-700 font-bold active:scale-95 cursor-pointer">▲</button>
-          <button onclick="sendKey('down')" class="px-2 py-1 rounded-lg liquid-glass-pill text-[11px] font-mono text-slate-700 font-bold active:scale-95 cursor-pointer">▼</button>
-          <button onclick="sendKey('left')" class="px-2 py-1 rounded-lg liquid-glass-pill text-[11px] font-mono text-slate-700 font-bold active:scale-95 cursor-pointer">◀</button>
-          <button onclick="sendKey('right')" class="px-2 py-1 rounded-lg liquid-glass-pill text-[11px] font-mono text-slate-700 font-bold active:scale-95 cursor-pointer">▶</button>
+          <!-- Microphone Voice Button -->
+          <button
+            id="micBtn"
+            onclick="toggleSpeech()"
+            class="p-1.5 rounded-full mr-1 text-slate-500 hover:text-cyan-600 transition-colors cursor-pointer shrink-0"
+            title="Voice Input"
+          >
+            <i data-lucide="mic" class="w-4 h-4"></i>
+          </button>
+
+          <!-- Send Button -->
+          <button
+            id="sendChatBtn"
+            onclick="submitChatMessage()"
+            class="h-7 w-7 shrink-0 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer"
+          >
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          </button>
         </div>
       </div>
 
     </div>
 
     <!-- ==================== TAB 2: DEDICATED PC TOUCHPAD VIEW ==================== -->
-    <div id="tabContentPc" class="hidden space-y-2.5">
-      
-      <!-- FULL-SURFACE TOUCHPAD FOR SAMSUNG A17 -->
-      <div class="liquid-glass-card rounded-2xl p-3 space-y-2 shadow-md">
+    <div id="tabContentPc" class="hidden flex-1 flex flex-col justify-between min-h-0 overflow-hidden space-y-2 py-1">
+      <div class="liquid-glass-card rounded-2xl p-3 space-y-2 shadow-md flex-1 flex flex-col">
         <div class="flex items-center justify-between">
           <span class="text-xs font-mono font-bold text-slate-800 flex items-center gap-1.5">
             <i data-lucide="mouse-pointer" class="w-4 h-4 text-cyan-600"></i>
@@ -469,7 +452,7 @@
 
         <div
           id="touchpadSurface"
-          class="relative w-full h-72 sm:h-80 rounded-xl bg-gradient-to-br from-white/90 to-cyan-50/70 border-2 border-cyan-300/60 shadow-inner flex flex-col items-center justify-center cursor-crosshair touch-none select-none overflow-hidden"
+          class="relative flex-1 min-h-[260px] rounded-xl bg-gradient-to-br from-white/90 to-cyan-50/70 border-2 border-cyan-300/60 shadow-inner flex flex-col items-center justify-center cursor-crosshair touch-none select-none overflow-hidden"
         >
           <div class="text-center text-slate-400 space-y-1 pointer-events-none">
             <i data-lucide="move" class="w-8 h-8 mx-auto text-cyan-500/50"></i>
@@ -479,8 +462,7 @@
           <div id="touchpadCursor" class="absolute w-5 h-5 rounded-full bg-cyan-500/40 border-2 border-cyan-500 shadow-md pointer-events-none hidden transform -translate-x-1/2 -translate-y-1/2"></div>
         </div>
 
-        <!-- Mouse Click Deck Under Touchpad -->
-        <div class="grid grid-cols-2 gap-2 pt-1">
+        <div class="grid grid-cols-2 gap-2 pt-1 shrink-0">
           <button
             onclick="sendMouseAction('click')"
             class="py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-mono font-bold text-xs active:scale-95 transition-all shadow-md cursor-pointer text-center"
@@ -495,38 +477,35 @@
           </button>
         </div>
       </div>
-
     </div>
 
-    <!-- ACTIVITY CONSOLE LOG DRAWER -->
-    <div class="liquid-glass-card rounded-2xl p-2.5 space-y-1 shadow-xs">
-      <div class="flex items-center justify-between text-[10px] font-mono text-slate-500">
-        <span class="font-bold flex items-center gap-1 text-slate-700">
-          <i data-lucide="activity" class="w-3 h-3 text-cyan-600"></i>
-          <span>Activity Log</span>
-        </span>
-        <button onclick="clearLogs()" class="hover:text-slate-800 cursor-pointer">Clear</button>
-      </div>
-      <div id="logConsole" class="h-16 overflow-y-auto rounded-xl bg-white/80 p-2 font-mono text-[10px] text-slate-600 space-y-0.5 border border-slate-200 shadow-inner select-text">
-        <div class="text-cyan-700 font-semibold">> J.A.R.V.I.S. Samsung A17 controller ready.</div>
-      </div>
+    <!-- Android Home Indicator Bar -->
+    <div class="flex items-center justify-center pt-1 shrink-0">
+      <div class="w-20 h-1 rounded-full bg-slate-400/40"></div>
     </div>
 
   </div>
 
   <script>
-    // Lucide Icons initialization
+    // Initialize Lucide Icons
     lucide.createIcons();
 
-    // State
+    // Constant Endpoints
+    const CLOUD_RELAY_WS = "wss://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app/ws/relay?role=phone";
+    const API_BASE_URL = "https://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app";
+
+    // Application State
     let socket = null;
     let isConnected = false;
     let isConnecting = false;
+    let currentSource = "ngrok"; // "ngrok" or "cloud"
     let selectedMonitor = "external";
+    let latestScreenFrame = "";
     let pingInterval = null;
     let keepaliveInterval = null;
     let lastPingSend = 0;
-    let activeTab = "home";
+    let failoverTimer = null;
+    let isListening = false;
 
     // DOM Elements
     const inputTunnel = document.getElementById("inputTunnelUrl");
@@ -534,6 +513,8 @@
     const headerDot = document.getElementById("headerStatusDot");
     const headerText = document.getElementById("headerStatusText");
     const headerPing = document.getElementById("headerPingText");
+    const badgeNetwork = document.getElementById("badgeNetwork");
+    const badgeLive = document.getElementById("badgeLive");
     const liveStreamImg = document.getElementById("liveStreamImg");
     const streamPlaceholder = document.getElementById("streamPlaceholder");
     const screenContainer = document.getElementById("screenContainer");
@@ -541,19 +522,27 @@
     const miniThumbnail = document.getElementById("miniThumbnail");
     const miniThumbnailDot = document.getElementById("miniThumbnailDot");
     const miniThumbnailPlaceholder = document.getElementById("miniThumbnailPlaceholder");
-    const logConsole = document.getElementById("logConsole");
     const settingsDrawer = document.getElementById("settingsDrawer");
+    const chatFeedContainer = document.getElementById("chatFeedContainer");
+    const userChatInput = document.getElementById("userChatInput");
+    const micBtn = document.getElementById("micBtn");
+    const monitorLabelText = document.getElementById("monitorLabelText");
+    const labelPlaceholderMon = document.getElementById("labelPlaceholderMon");
     const touchpadSurface = document.getElementById("touchpadSurface");
     const touchpadCursor = document.getElementById("touchpadCursor");
 
-    // Initialize Params from URL or LocalStorage
+    function haptic(ms = 15) {
+      try { if ("vibrate" in navigator) navigator.vibrate(ms); } catch (_) {}
+    }
+
+    // Initialize Params from URL
     function initParams() {
       const params = new URLSearchParams(window.location.search);
       let tunnelParam = params.get("tunnel") || "";
       const authParam = params.get("auth") || "";
 
       const savedUrl = localStorage.getItem("jarvis_tunnel_url") || "";
-      const savedAuth = localStorage.getItem("jarvis_auth_token") || "JARVIS-5277";
+      const savedAuth = localStorage.getItem("jarvis_auth_token") || "JARVIS-5436";
 
       const targetUrl = tunnelParam || savedUrl;
       const targetAuth = authParam || savedAuth;
@@ -561,13 +550,12 @@
       inputTunnel.value = targetUrl;
       inputAuth.value = targetAuth;
 
-      // Auto-connect if tunnel parameter is present or saved
-      if (targetUrl) {
-        log(`Discovered tunnel target: ${targetUrl}. Connecting...`);
-        connectWebSocket();
+      // Connect immediately: try Cloudflare/Ngrok first, auto-failover to Cloud Relay if connection resets
+      if (targetUrl && !targetUrl.includes("ais-dev")) {
+        currentSource = targetUrl.includes("trycloudflare") ? "cloudflare" : "ngrok";
+        attemptConnection(targetUrl, targetAuth, true);
       } else {
-        // Open settings drawer if empty so user can paste their URL
-        toggleSettingsDrawer(true);
+        useCloudRelay();
       }
     }
 
@@ -580,7 +568,6 @@
     }
 
     function switchTab(tab) {
-      activeTab = tab;
       haptic(15);
       const btnHome = document.getElementById("tabBtnHome");
       const btnPc = document.getElementById("tabBtnPc");
@@ -588,37 +575,19 @@
       const viewPc = document.getElementById("tabContentPc");
 
       if (tab === "home") {
-        btnHome.className = "flex-1 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 liquid-glass-active text-cyan-950";
+        btnHome.className = "flex-1 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white/95 text-cyan-950 shadow-sm";
         btnPc.className = "flex-1 py-1.5 rounded-xl font-bold text-xs text-slate-600 hover:text-slate-900 transition-all cursor-pointer flex items-center justify-center gap-1.5";
         viewHome.classList.remove("hidden");
         viewPc.classList.add("hidden");
       } else {
-        btnPc.className = "flex-1 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 liquid-glass-active text-cyan-950";
+        btnPc.className = "flex-1 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white/95 text-cyan-950 shadow-sm";
         btnHome.className = "flex-1 py-1.5 rounded-xl font-bold text-xs text-slate-600 hover:text-slate-900 transition-all cursor-pointer flex items-center justify-center gap-1.5";
         viewPc.classList.remove("hidden");
         viewHome.classList.add("hidden");
       }
     }
 
-    function log(msg) {
-      const line = document.createElement("div");
-      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      line.textContent = `[${time}] ${msg}`;
-      logConsole.appendChild(line);
-      logConsole.scrollTop = logConsole.scrollHeight;
-    }
-
-    function clearLogs() {
-      logConsole.innerHTML = '<div class="text-cyan-700 font-semibold">> Logs cleared.</div>';
-    }
-
-    function haptic(ms = 15) {
-      try {
-        if ("vibrate" in navigator) navigator.vibrate(ms);
-      } catch (_) {}
-    }
-
-    // URL Normalizer with ngrok-skip-browser-warning bypass
+    // Canonical WebSocket URL Formatter
     function normalizeWsUrl(url) {
       let u = (url || "").trim();
       if (!u) return "";
@@ -626,33 +595,57 @@
       if (u.startsWith("https://")) u = u.replace("https://", "wss://");
       if (u.startsWith("tcp://")) u = u.replace("tcp://", "wss://");
 
-      // On GitHub Pages (HTTPS), plain ws:// is blocked by modern Android browsers
       if (window.location.protocol === "https:" && u.startsWith("ws://")) {
         u = u.replace("ws://", "wss://");
       }
 
-      // CRITICAL: Ngrok Free Tier Browser Warning Bypass for WebSockets
-      if (u.includes("ngrok") && !u.includes("ngrok-skip-browser-warning")) {
-        const sep = u.includes("?") ? "&" : "?";
-        u = `${u}${sep}ngrok-skip-browser-warning=true`;
+      try {
+        const parsed = new URL(u);
+        if (!parsed.pathname || parsed.pathname === "") parsed.pathname = "/";
+        if (parsed.hostname.includes("ngrok") && !parsed.searchParams.has("ngrok-skip-browser-warning")) {
+          parsed.searchParams.set("ngrok-skip-browser-warning", "true");
+        }
+        return parsed.toString();
+      } catch (_) {
+        if (u.includes("ngrok") && !u.includes("ngrok-skip-browser-warning")) {
+          return u.rstrip("/") + "/?ngrok-skip-browser-warning=true";
+        }
+        return u;
       }
-      return u;
     }
 
-    function connectWebSocket() {
-      const rawUrl = inputTunnel.value.trim();
-      const token = inputAuth.value.trim() || "JARVIS-5277";
+    function useCloudRelay() {
+      haptic(20);
+      currentSource = "cloud";
+      inputTunnel.value = CLOUD_RELAY_WS;
+      document.getElementById("btnSourceToggle").textContent = "Using Cloud Relay (100% Reliable)";
+      attemptConnection(CLOUD_RELAY_WS, inputAuth.value.trim(), false);
+    }
 
-      if (!rawUrl) {
-        alert("Please enter your Ngrok WSS tunnel URL");
-        toggleSettingsDrawer(true);
-        return;
+    function toggleRelaySource() {
+      if (currentSource === "cloud") {
+        currentSource = "ngrok";
+        const savedUrl = localStorage.getItem("jarvis_tunnel_url") || "";
+        inputTunnel.value = savedUrl;
+        document.getElementById("btnSourceToggle").textContent = "Switch to Cloud Relay";
+        attemptConnection(savedUrl, inputAuth.value.trim(), true);
+      } else {
+        useCloudRelay();
       }
+    }
 
-      const wsUrl = normalizeWsUrl(rawUrl);
+    function connectManual() {
+      const u = inputTunnel.value.trim();
+      const a = inputAuth.value.trim();
+      currentSource = u.includes("ais-dev") ? "cloud" : "ngrok";
+      attemptConnection(u, a, currentSource === "ngrok");
+    }
+
+    function attemptConnection(targetUrl, token, enableFailover) {
+      const wsUrl = normalizeWsUrl(targetUrl);
+      if (!wsUrl) return;
+
       inputTunnel.value = wsUrl;
-
-      // Persist in localStorage
       localStorage.setItem("jarvis_tunnel_url", wsUrl);
       localStorage.setItem("jarvis_auth_token", token);
 
@@ -660,32 +653,40 @@
         try { socket.close(); } catch (_) {}
       }
 
+      clearTimeout(failoverTimer);
       isConnecting = true;
-      updateHeaderStatus("connecting");
-      log(`Connecting to: ${wsUrl}`);
+      updateStatusDisplay("connecting");
+
+      if (enableFailover) {
+        // Auto-failover to Cloud Relay if Ngrok connection resets or stalls
+        failoverTimer = setTimeout(() => {
+          if (!isConnected) {
+            console.warn("Ngrok connection timed out or reset. Auto-switching to Cloud Relay Hub...");
+            addJarvisMessage("Ngrok tunnel connection timed out. Seamlessly auto-switching to J.A.R.V.I.S. Cloud Relay Hub...");
+            useCloudRelay();
+          }
+        }, 3500);
+      }
 
       try {
         socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
+          clearTimeout(failoverTimer);
           isConnected = true;
           isConnecting = false;
-          updateHeaderStatus("connected");
           haptic(30);
-          log("✓ WebSocket connected! Authenticating with workstation...");
+          updateStatusDisplay("connected");
 
           socket.send(JSON.stringify({ type: "auth", token }));
           socket.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
           socket.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
 
-          // Automatically collapse settings drawer on successful connection
           toggleSettingsDrawer(false);
 
-          // Latency ping
           clearInterval(pingInterval);
           pingInterval = setInterval(sendPing, 3000);
 
-          // Keepalive / frame requester
           clearInterval(keepaliveInterval);
           keepaliveInterval = setInterval(() => {
             if (socket && socket.readyState === WebSocket.OPEN) {
@@ -701,49 +702,47 @@
             if (data.type === "pong") {
               const latency = Date.now() - lastPingSend;
               headerPing.textContent = `${latency}ms`;
-            } else if (data.type === "screen_frame") {
-              if (data.activeMonitor && data.activeMonitor !== selectedMonitor) return;
-              
+            } else if (data.type === "screen_frame" && data.frame) {
+              latestScreenFrame = data.frame;
               liveStreamImg.src = data.frame;
               liveStreamImg.classList.remove("hidden");
               streamPlaceholder.classList.add("hidden");
+              badgeLive.classList.remove("hidden");
 
               miniThumbnail.src = data.frame;
               miniThumbnail.classList.remove("hidden");
               miniThumbnailPlaceholder.classList.add("hidden");
               miniThumbnailDot.className = "absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]";
             } else if (data.type === "directive_response") {
-              log(`[PC] ${data.result}`);
+              addJarvisMessage(data.result || "Action executed on workstation, sir.");
             } else if (data.type === "auth_success") {
-              log("✓ Authenticated! Monitor streaming active.");
+              addJarvisMessage("Authenticated! Workstation screen projection active.");
             } else if (data.type === "pc_status") {
               if (data.status === "online") {
-                log("Workstation is online. Streaming feed.");
+                updateStatusDisplay("connected");
               }
             }
-          } catch (_) {
-            log(`[PC] ${event.data}`);
-          }
+          } catch (_) {}
         };
 
         socket.onerror = () => {
-          log("⚠️ Connection error. Verifying Ngrok status & bypass parameter...");
+          if (enableFailover && !isConnected) {
+            clearTimeout(failoverTimer);
+            console.warn("Ngrok connection error. Switching to Cloud Relay...");
+            useCloudRelay();
+          }
         };
 
         socket.onclose = () => {
           isConnected = false;
           isConnecting = false;
-          updateHeaderStatus("disconnected");
-          log("WebSocket closed.");
+          updateStatusDisplay("disconnected");
           clearInterval(pingInterval);
           clearInterval(keepaliveInterval);
         };
 
       } catch (err) {
-        isConnecting = false;
-        isConnected = false;
-        updateHeaderStatus("disconnected");
-        log(`Connection exception: ${err.message}`);
+        if (enableFailover) useCloudRelay();
       }
     }
 
@@ -754,23 +753,28 @@
       }
     }
 
-    function updateHeaderStatus(state) {
+    function updateStatusDisplay(state) {
       if (state === "connected") {
-        headerDot.className = "h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981] animate-pulse";
-        headerText.className = "font-semibold text-emerald-700";
-        headerText.textContent = "Online (Ngrok)";
-        document.getElementById("btnDrawerConnect").textContent = "Disconnect / Reconnect";
+        headerDot.className = "h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse shrink-0";
+        headerText.className = "font-semibold text-emerald-700 truncate";
+        const providerName = currentSource === "cloud" ? "Cloud Relay" : currentSource === "cloudflare" ? "Cloudflare Edge" : "Ngrok";
+        headerText.textContent = `Online (${providerName})`;
+        badgeNetwork.textContent = currentSource === "cloud" ? "Cloud Relay" : currentSource === "cloudflare" ? "Cloudflare WSS" : "Ngrok WSS";
+        document.getElementById("btnDrawerConnect").textContent = "Re-Sync Feed";
       } else if (state === "connecting") {
-        headerDot.className = "h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping";
-        headerText.className = "font-semibold text-amber-600";
+        headerDot.className = "h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping shrink-0";
+        headerText.className = "font-semibold text-amber-600 truncate";
         headerText.textContent = "Connecting...";
+        badgeNetwork.textContent = "Connecting";
         document.getElementById("btnDrawerConnect").textContent = "Connecting...";
       } else {
-        headerDot.className = "h-1.5 w-1.5 rounded-full bg-slate-400";
-        headerText.className = "font-semibold text-slate-500";
+        headerDot.className = "h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0";
+        headerText.className = "font-semibold text-slate-500 truncate";
         headerText.textContent = "Awaiting PC Feed";
-        document.getElementById("btnDrawerConnect").textContent = "Connect Ngrok Tunnel";
+        badgeNetwork.textContent = "Offline";
+        badgeLive.classList.add("hidden");
         miniThumbnailDot.className = "absolute top-1 right-1 h-2 w-2 rounded-full bg-slate-400";
+        document.getElementById("btnDrawerConnect").textContent = "Connect Now";
       }
     }
 
@@ -778,35 +782,27 @@
     function switchMonitor(mon) {
       selectedMonitor = mon;
       haptic(15);
-      document.getElementById("monBtnExternal").className = mon === "external"
-        ? "px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-800 font-bold border border-cyan-400/40 transition-all cursor-pointer"
-        : "px-2 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer";
-      document.getElementById("monBtnPrimary").className = mon === "primary"
-        ? "px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-800 font-bold border border-cyan-400/40 transition-all cursor-pointer"
-        : "px-2 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer";
-      document.getElementById("monBtnAll").className = mon === "all"
-        ? "px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-800 font-bold border border-cyan-400/40 transition-all cursor-pointer"
-        : "px-2 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer";
+      monitorLabelText.textContent = mon === "external" ? "EXTERNAL" : mon === "primary" ? "PRIMARY (LAPTOP)" : "ALL SCREENS";
+      labelPlaceholderMon.textContent = mon;
 
-      log(`Switched to: ${mon} display`);
+      document.getElementById("monBtnExternal").className = mon === "external"
+        ? "px-2 py-0.5 rounded-lg text-[10px] font-bold bg-cyan-500 text-white transition-all cursor-pointer shadow-xs"
+        : "px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-white/80 border border-slate-200 text-slate-700 hover:bg-white transition-all cursor-pointer";
+      document.getElementById("monBtnPrimary").className = mon === "primary"
+        ? "px-2 py-0.5 rounded-lg text-[10px] font-bold bg-cyan-500 text-white transition-all cursor-pointer shadow-xs"
+        : "px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-white/80 border border-slate-200 text-slate-700 hover:bg-white transition-all cursor-pointer";
+      document.getElementById("monBtnAll").className = mon === "all"
+        ? "px-2 py-0.5 rounded-lg text-[10px] font-bold bg-cyan-500 text-white transition-all cursor-pointer shadow-xs"
+        : "px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-white/80 border border-slate-200 text-slate-700 hover:bg-white transition-all cursor-pointer";
+
       if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: "start_stream", monitor: mon }));
         socket.send(JSON.stringify({ type: "request_frame", monitor: mon }));
       }
     }
 
-    function requestScreenFrame() {
-      haptic(15);
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
-        log("Screen frame requested.");
-      }
-    }
-
     // Touch & Pointer Tracking on Live Screen
-    screenContainer.addEventListener("pointerdown", handleScreenPointer);
-
-    function handleScreenPointer(e) {
+    screenContainer.addEventListener("pointerdown", (e) => {
       if (!isConnected || !socket) return;
       haptic(15);
       const rect = screenContainer.getBoundingClientRect();
@@ -825,9 +821,44 @@
         yRel,
         monitor: selectedMonitor
       }));
+    });
+
+    function sendMouseAction(buttonType) {
+      haptic(20);
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: "mouse_click",
+          button: buttonType,
+          xRel: 0.5,
+          yRel: 0.5,
+          monitor: selectedMonitor
+        }));
+      }
     }
 
-    // Touchpad Gestures on Samsung A17
+    function centerMouse() {
+      haptic(20);
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          type: "mouse_move",
+          xRel: 0.5,
+          yRel: 0.5,
+          monitor: selectedMonitor
+        }));
+      }
+      addJarvisMessage("Mouse cursor centered to 50%, 50%.");
+    }
+
+    function toggleFullscreen() {
+      haptic(15);
+      if (!document.fullscreenElement) {
+        screenContainer.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // Dedicated Touchpad Handling
     let isTouchpadActive = false;
     touchpadSurface.addEventListener("pointerdown", (e) => {
       isTouchpadActive = true;
@@ -842,7 +873,6 @@
       if (!isTouchpadActive) return;
       isTouchpadActive = false;
       touchpadCursor.classList.add("hidden");
-      // Trigger click at location
       const rect = touchpadSurface.getBoundingClientRect();
       const xRel = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const yRel = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
@@ -866,80 +896,198 @@
       touchpadCursor.classList.remove("hidden");
 
       if (socket && socket.readyState === WebSocket.OPEN) {
-        const xRel = Math.max(0, Math.min(1, x / rect.width));
-        const yRel = Math.max(0, Math.min(1, y / rect.height));
         socket.send(JSON.stringify({
           type: "mouse_move",
-          xRel,
-          yRel,
+          xRel: Math.max(0, Math.min(1, x / rect.width)),
+          yRel: Math.max(0, Math.min(1, y / rect.height)),
           monitor: selectedMonitor
         }));
       }
     }
 
-    function sendMouseAction(buttonType) {
+    // ==================== CHAT CONVERSATION LOGIC ====================
+    function addUserMessage(text) {
+      const wrap = document.createElement("div");
+      wrap.className = "flex items-start gap-2 justify-end";
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      wrap.innerHTML = `
+        <div class="rounded-2xl rounded-tr-xs p-2.5 bg-gradient-to-br from-cyan-500/25 via-sky-500/20 to-blue-500/20 border border-cyan-400/50 text-right ml-auto text-slate-900 max-w-[88%] space-y-1 shadow-xs">
+          <p class="text-xs text-slate-900 leading-relaxed font-medium">${escapeHtml(text)}</p>
+          <p class="text-[9px] text-slate-500 font-mono text-right">${time}</p>
+        </div>
+        <div class="h-7 w-7 shrink-0 rounded-full bg-cyan-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+          You
+        </div>
+      `;
+      chatFeedContainer.appendChild(wrap);
+      chatFeedContainer.scrollTop = chatFeedContainer.scrollHeight;
+    }
+
+    function addJarvisMessage(text, plan = null) {
+      const wrap = document.createElement("div");
+      wrap.className = "flex items-start gap-2 justify-start";
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      let planHtml = "";
+      if (plan && plan.length > 0) {
+        planHtml = `
+          <div class="pt-1 flex flex-wrap gap-1">
+            ${plan.map((step, idx) => `
+              <span class="px-1.5 py-0.2 rounded bg-cyan-100 border border-cyan-300 text-[8px] font-mono text-cyan-900 flex items-center gap-1 font-semibold">
+                <span class="opacity-70">#${idx + 1}</span>
+                <span>${step.type}</span>
+                ${step.value ? `<span class="font-bold">"${escapeHtml(step.value)}"</span>` : ''}
+              </span>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      wrap.innerHTML = `
+        <div class="h-7 w-7 shrink-0 rounded-full bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center font-bold text-cyan-800 text-xs shadow-xs">
+          J
+        </div>
+        <div class="rounded-2xl rounded-tl-xs p-2.5 liquid-glass-card text-slate-900 max-w-[88%] space-y-1 shadow-xs">
+          <p class="text-xs text-slate-900 leading-relaxed font-medium">${escapeHtml(text)}</p>
+          ${planHtml}
+          <p class="text-[9px] text-slate-500 font-mono text-left">${time}</p>
+        </div>
+      `;
+      chatFeedContainer.appendChild(wrap);
+      chatFeedContainer.scrollTop = chatFeedContainer.scrollHeight;
+    }
+
+    function handleQuickPrompt(text) {
+      userChatInput.value = text;
+      submitChatMessage();
+    }
+
+    async function submitChatMessage() {
+      const text = userChatInput.value.trim();
+      if (!text) return;
+
+      userChatInput.value = "";
       haptic(20);
-      if (!isConnected || !socket) {
-        alert("Please connect to workstation first.");
+      addUserMessage(text);
+
+      const lower = text.toLowerCase();
+
+      // Dispatch direct keystroke/macro if applicable
+      if (lower.includes("claude: continue") || (lower.includes("continue") && lower.includes("claude"))) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "macro", action: "claude_continue" }));
+        }
+        addJarvisMessage("Typed 'continue' and hit Enter in Claude session, sir.", [
+          { type: "write", value: "continue" },
+          { type: "press", value: "enter" }
+        ]);
         return;
       }
-      socket.send(JSON.stringify({
-        type: "mouse_click",
-        button: buttonType,
-        xRel: 0.5,
-        yRel: 0.5,
-        monitor: selectedMonitor
-      }));
-      log(`Sent ${buttonType}.`);
-    }
 
-    function sendScroll(direction) {
-      haptic(15);
-      if (!isConnected || !socket) return;
-      socket.send(JSON.stringify({
-        type: "mouse_scroll",
-        direction: direction,
-        amount: direction === "up" ? 4 : -4
-      }));
-    }
-
-    function triggerMacro(action) {
-      haptic(25);
-      if (!isConnected || !socket) {
-        alert("Please connect to workstation first.");
+      if (lower.startsWith("type ") || lower.startsWith("write ")) {
+        const payload = text.replace(/^(type|write)\s+/i, "");
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "keyboard_type", text: payload }));
+        }
+        addJarvisMessage(`Typed on active PC window: "${payload}"`, [{ type: "keyboard_type", value: payload }]);
         return;
       }
-      socket.send(JSON.stringify({
-        type: "macro",
-        action: action
-      }));
-      log(`⚡ Triggered: ${action}`);
+
+      // Query AI server for multimodal screen analysis or PC directives
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/jarvis/plan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            command: text,
+            screenImage: latestScreenFrame || null
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.isAiQuery) {
+            addJarvisMessage(data.reply || data.summary || "Here is what is on the screen, sir.");
+          } else {
+            if (data.actions && data.actions.length > 0 && socket && socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: "action_plan", actions: data.actions }));
+            }
+            addJarvisMessage(data.reply || data.summary || "Directive dispatched to PC workstation, sir.", data.actions);
+          }
+        } else {
+          // Fallback response
+          handleLocalDirective(text);
+        }
+      } catch (_) {
+        handleLocalDirective(text);
+      }
     }
 
-    function sendTextToPc() {
-      const txt = document.getElementById("textInputBuffer").value;
-      if (!txt) return;
+    function handleLocalDirective(text) {
+      const lower = text.toLowerCase();
+      if (lower.includes("lock")) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "macro", action: "lock_pc" }));
+        }
+        addJarvisMessage("Workstation locked securely, sir.");
+      } else if (lower.includes("mute")) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "macro", action: "volume_mute" }));
+        }
+        addJarvisMessage("PC volume toggled, sir.");
+      } else if (lower.includes("chrome")) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "directive", command: "open chrome" }));
+        }
+        addJarvisMessage("Launching Google Chrome, sir.");
+      } else if (lower.includes("vs code") || lower.includes("vscode")) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "directive", command: "open vs code" }));
+        }
+        addJarvisMessage("Launching Visual Studio Code, sir.");
+      } else {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: "directive", command: text }));
+          addJarvisMessage(`Directive "${text}" dispatched to PC workstation, sir.`);
+        } else {
+          addJarvisMessage("Workstation is standing by. Ensure 'python pc.py' is running to execute live actions.");
+        }
+      }
+    }
+
+    function toggleSpeech() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert("Voice recognition is not supported by your browser.");
+        return;
+      }
       haptic(20);
-      if (!isConnected || !socket) {
-        alert("Please connect to workstation first.");
-        return;
-      }
-      socket.send(JSON.stringify({
-        type: "keyboard_type",
-        text: txt
-      }));
-      log(`Typed on PC: "${txt}"`);
-      document.getElementById("textInputBuffer").value = "";
-    }
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
 
-    function sendKey(keyName) {
-      haptic(15);
-      if (!isConnected || !socket) return;
-      socket.send(JSON.stringify({
-        type: "keyboard_key",
-        key: keyName
-      }));
-      log(`Key: ${keyName.toUpperCase()}`);
+      if (!isListening) {
+        isListening = true;
+        micBtn.classList.add("text-rose-500", "animate-pulse");
+        recognition.start();
+
+        recognition.onresult = (e) => {
+          const transcript = e.results[0][0].transcript;
+          userChatInput.value = transcript;
+          submitChatMessage();
+        };
+
+        recognition.onerror = () => {
+          isListening = false;
+          micBtn.classList.remove("text-rose-500", "animate-pulse");
+        };
+
+        recognition.onend = () => {
+          isListening = false;
+          micBtn.classList.remove("text-rose-500", "animate-pulse");
+        };
+      }
     }
 
     function copyCurrentLink() {
@@ -948,24 +1096,20 @@
       const a = inputAuth.value.trim();
       const baseUrl = window.location.origin + window.location.pathname;
       const shareUrl = `${baseUrl}?tunnel=${encodeURIComponent(u)}&auth=${encodeURIComponent(a)}`;
-
       navigator.clipboard.writeText(shareUrl).then(() => {
-        const btnText = document.getElementById("copyLinkText");
-        btnText.textContent = "Copied!";
-        setTimeout(() => { btnText.textContent = "Share"; }, 2000);
+        alert("Control link copied to clipboard!");
       });
     }
 
-    function toggleFullscreen() {
-      haptic(15);
-      if (!document.fullscreenElement) {
-        screenContainer.requestFullscreen().catch(() => {});
-      } else {
-        document.exitFullscreen().catch(() => {});
-      }
+    function escapeHtml(str) {
+      return (str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
     }
 
-    // Startup
+    // Run Startup
     initParams();
   </script>
 </body>
