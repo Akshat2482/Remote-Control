@@ -71,6 +71,8 @@ logger = logging.getLogger("JARVIS-PC")
 LOCAL_PORT = 8765
 TARGET_PHONE = "+919962919450"
 WEB_APP_URL = "https://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app"
+# Optional: Set your GitHub Pages repository URL if hosted there (e.g. "https://YOUR_USER.github.io/remote-control/control.html")
+GITHUB_PAGES_CONTROL_URL = ""
 CLOUD_RELAY_URL = "wss://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app/ws/relay?role=pc"
 
 # Specific Chrome configuration for your akshatvenu account
@@ -324,14 +326,22 @@ def send_to_whatsapp(tunnel_url: str, secret_auth: str):
     hits enter and clicks send with the direct one-click link for Android phone!
     """
     encoded_tunnel = urllib.parse.quote(tunnel_url, safe="")
-    one_click_url = f"{WEB_APP_URL}?tunnel={encoded_tunnel}&auth={secret_auth}"
+    one_click_web_url = f"{WEB_APP_URL}?tunnel={encoded_tunnel}&auth={secret_auth}"
+    control_html_url = f"{WEB_APP_URL}/control.html?tunnel={encoded_tunnel}&auth={secret_auth}"
+    
+    if GITHUB_PAGES_CONTROL_URL:
+        github_link = f"🐙 GitHub Pages Link:\n{GITHUB_PAGES_CONTROL_URL}?tunnel={encoded_tunnel}&auth={secret_auth}\n\n"
+    else:
+        github_link = f"🐙 Standalone control.html Link:\n{control_html_url}\n\n"
+
     message_text = (
         f"⚡ J.A.R.V.I.S. PC WORKSTATION ONLINE (NGROK TUNNEL)!\n\n"
-        f"📱 One-Click Android Connection:\n{one_click_url}\n\n"
+        f"📱 One-Click Android App:\n{one_click_web_url}\n\n"
+        f"{github_link}"
         f"🌐 Ngrok Tunnel URL:\n{tunnel_url}\n\n"
         f"🖥️ Streaming: External Monitor / Secondary Screen\n"
         f"🔑 Secret Auth: {secret_auth}\n\n"
-        f"Ready for live projection and remote control via Ngrok, sir."
+        f"Ready for live projection and remote control via GitHub Pages & Ngrok, sir."
     )
 
     encoded_msg = urllib.parse.quote(message_text)
@@ -728,6 +738,7 @@ async def main():
     print("\n" + "#" * 68)
     print(f"  [STREAMING TARGET] : EXTERNAL SCREEN (Monitor 2 / Secondary)")
     print(f"  [NGROK TUNNEL URL] : {tunnel_url}")
+    print(f"  [GITHUB PAGES HTML]: {WEB_APP_URL}/control.html")
     print(f"  [SECRET AUTH TOKEN]: {SECRET_AUTH}")
     print(f"  [TARGET WHATSAPP]  : {TARGET_PHONE} (You)")
     print(f"  [CHROME PROFILE]   : {CHROME_PROFILE} (akshatvenu)")
@@ -740,9 +751,17 @@ async def main():
     cloud_task = asyncio.create_task(cloud_relay_worker())
 
     # Start local server on 0.0.0.0:8765
-    logger.info(f"Local WebSocket server running on 0.0.0.0:{LOCAL_PORT} (Serving Ngrok)...")
+    logger.info(f"Local WebSocket server running on 0.0.0.0:{LOCAL_PORT} (Serving Ngrok & GitHub Pages)...")
     try:
-        async with websockets.serve(handle_client, "0.0.0.0", LOCAL_PORT):
+        async with websockets.serve(
+            handle_client,
+            "0.0.0.0",
+            LOCAL_PORT,
+            origins=None,
+            max_size=10 * 1024 * 1024,
+            ping_interval=20,
+            ping_timeout=20,
+        ):
             await cloud_task
     except Exception as ex:
         logger.error(f"Server loop error: {ex}")

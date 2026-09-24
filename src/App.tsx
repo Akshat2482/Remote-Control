@@ -41,6 +41,7 @@ import {
   Cpu,
   ClipboardCheck,
   Share2,
+  ExternalLink,
 } from "lucide-react";
 import { VocalVisualizer } from "./components/VocalVisualizer";
 import { VirtualKeyboard } from "./components/VirtualKeyboard";
@@ -1411,26 +1412,66 @@ export default function App() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => {
-                  handleConnectTunnel(tunnelUrl);
-                  setShowSettingsModal(false);
-                }}
-                disabled={isConnecting}
-                className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold font-mono text-xs active:scale-95 transition-all text-center shadow-md cursor-pointer"
-              >
-                {isConnecting ? "Connecting..." : "Connect Ngrok Tunnel"}
-              </button>
+            <div className="flex flex-col gap-2 pt-1">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    handleConnectTunnel(tunnelUrl);
+                    setShowSettingsModal(false);
+                  }}
+                  disabled={isConnecting}
+                  className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold font-mono text-xs active:scale-95 transition-all text-center shadow-md cursor-pointer"
+                >
+                  {isConnecting ? "Connecting..." : "Connect Ngrok Tunnel"}
+                </button>
 
-              <a
-                href="/pc.py"
-                download="pc.py"
-                className="px-4 py-2.5 rounded-xl liquid-glass-pill font-mono text-xs text-slate-800 hover:text-cyan-800 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-              >
-                <Download className="h-3.5 w-3.5 text-cyan-600" />
-                <span>Download pc.py</span>
-              </a>
+                <a
+                  href={`/control.html?tunnel=${encodeURIComponent(tunnelUrl)}&auth=${encodeURIComponent(secretAuth)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-400 font-mono text-xs font-bold active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border border-slate-700"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>Open control.html</span>
+                </a>
+              </div>
+
+              <div className="flex gap-2">
+                <a
+                  href="/pc.py"
+                  download="pc.py"
+                  className="flex-1 py-2 rounded-xl liquid-glass-pill font-mono text-xs text-slate-800 hover:text-cyan-800 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Download className="h-3.5 w-3.5 text-cyan-600" />
+                  <span>Download pc.py</span>
+                </a>
+
+                <a
+                  href="/control.html"
+                  download="control.html"
+                  className="flex-1 py-2 rounded-xl liquid-glass-pill font-mono text-xs text-slate-800 hover:text-cyan-800 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Download className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Download control.html</span>
+                </a>
+              </div>
+            </div>
+
+            {/* GitHub Pages Guide */}
+            <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-cyan-400 font-bold flex items-center gap-1">
+                  <Globe className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>GitHub Pages Remote URL:</span>
+                </span>
+                <span className="text-[10px] text-emerald-400 font-bold">Works with Ngrok</span>
+              </div>
+              <p className="text-slate-400 text-[10px] leading-relaxed">
+                Put <code className="text-cyan-300">control.html</code> in your GitHub repository (<code className="text-white">myusername/remote-control</code>) and enable GitHub Pages in Settings &gt; Pages. You can then control your PC from anywhere at:
+              </p>
+              <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 text-cyan-300 text-[10px] break-all select-all">
+                https://&lt;your-username&gt;.github.io/remote-control/control.html
+              </div>
             </div>
 
             {/* Quick Terminal Guide */}

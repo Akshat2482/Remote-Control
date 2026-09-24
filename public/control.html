@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>J.A.R.V.I.S. Remote Control | GitHub Pages Edition</title>
+  <meta name="description" content="Standalone GitHub Pages remote workstation controller powered by ngrok WSS tunnel." />
+  
+  <!-- Tailwind CSS via CDN for 100% standalone GitHub Pages compatibility -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    body {
+      background-color: #090d16;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .liquid-glass {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .liquid-glass-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.35);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Touch cursor feedback */
+    .touch-indicator {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid #22d3ee;
+      background: rgba(34, 211, 238, 0.3);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      box-shadow: 0 0 10px rgba(34, 211, 238, 0.8);
+      display: none;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body class="min-h-[100dvh] flex flex-col items-center justify-start p-2 sm:p-4 selection:bg-cyan-500 selection:text-white">
+
+  <!-- Ambient Glow Background -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div class="absolute -top-20 -left-20 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-20 -right-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
+  </div>
+
+  <div class="relative z-10 w-full max-w-4xl flex flex-col gap-3 pb-[calc(var(--safe-bottom)+1rem)] pt-[var(--safe-top)]">
+    
+    <!-- TOP HEADER -->
+    <header class="liquid-glass rounded-2xl p-3 sm:p-4 flex items-center justify-between shadow-lg">
+      <div class="flex items-center gap-2.5">
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md">
+          ⚡
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-black text-base sm:text-lg tracking-wider text-white">J.A.R.V.I.S.</h1>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-700/50 font-bold">
+              GitHub Pages
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 font-mono">Workstation Controller via Ngrok WSS</p>
+        </div>
+      </div>
+
+      <!-- Status Indicator Pill -->
+      <div id="connectionStatusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-700 text-xs font-mono">
+        <span id="statusIndicatorDot" class="h-2 w-2 rounded-full bg-amber-500 animate-ping"></span>
+        <span id="statusText" class="font-bold text-amber-400">Disconnected</span>
+        <span id="pingBadge" class="hidden text-[10px] text-cyan-400 font-bold ml-1 border-l border-slate-700 pl-1.5">0ms</span>
+      </div>
+    </header>
+
+    <!-- NGROK TUNNEL CONNECTION BAR -->
+    <section class="liquid-glass rounded-2xl p-3 sm:p-4 shadow-md space-y-2.5">
+      <div class="flex flex-col sm:flex-row gap-2">
+        <div class="flex-1 space-y-1">
+          <label class="text-[11px] font-mono font-bold text-slate-300 flex items-center justify-between">
+            <span>NGROK WSS TUNNEL URL</span>
+            <span class="text-[10px] text-slate-500 font-normal">e.g. wss://xxxx.ngrok-free.app</span>
+          </label>
+          <input
+            id="inputTunnelUrl"
+            type="text"
+            placeholder="wss://0.tcp.ngrok.io:12345 or wss://xxxx.ngrok-free.app"
+            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-400"
+          />
+        </div>
+
+        <div class="sm:w-44 space-y-1">
+          <label class="text-[11px] font-mono font-bold text-slate-300">
+            AUTH TOKEN
+          </label>
+          <input
+            id="inputAuthToken"
+            type="text"
+            placeholder="JARVIS-7749"
+            class="w-full bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-400"
+          />
+        </div>
+
+        <div class="flex items-end">
+          <button
+            id="btnConnect"
+            onclick="toggleConnection()"
+            class="w-full sm:w-auto px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-mono font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer h-[34px]"
+          >
+            <i data-lucide="power" class="w-3.5 h-3.5"></i>
+            <span id="btnConnectLabel">Connect Ngrok</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-800/80">
+        <span class="flex items-center gap-1">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400 inline"></i>
+          TLS WSS Direct • Runs anywhere on GitHub Pages
+        </span>
+        <button
+          onclick="copyShareableLink()"
+          class="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+        >
+          <i data-lucide="share-2" class="w-3 h-3"></i>
+          <span id="copyLinkNotice">Copy 1-Click Link</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- MONITOR DISPLAY SELECTOR -->
+    <div class="flex items-center justify-between px-1">
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs font-mono text-slate-400 font-bold uppercase">Streaming Target:</span>
+        <div class="inline-flex p-0.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono">
+          <button
+            id="btnMonExternal"
+            onclick="switchMonitor('external')"
+            class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 transition-all cursor-pointer"
+          >
+            🖥️ External Screen
+          </button>
+          <button
+            id="btnMonPrimary"
+            onclick="switchMonitor('primary')"
+            class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer"
+          >
+            💻 Laptop
+          </button>
+          <button
+            id="btnMonAll"
+            onclick="switchMonitor('all')"
+            class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer"
+          >
+            🔲 All
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button
+          onclick="requestScreenFrame()"
+          class="px-2.5 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-mono text-slate-300 flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+          title="Refresh screenshot feed"
+        >
+          <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+          <span>Refresh</span>
+        </button>
+        <button
+          onclick="toggleFullscreen()"
+          class="p-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 cursor-pointer transition-all active:scale-95"
+          title="Full Screen"
+        >
+          <i data-lucide="maximize" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- LIVE WORKSTATION PROJECTION CANVAS -->
+    <main
+      id="screenContainer"
+      class="relative w-full aspect-[16/9] sm:aspect-[16/10] bg-black rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center select-none cursor-crosshair touch-none"
+    >
+      <!-- Live Video Feed Image -->
+      <img
+        id="liveStreamImg"
+        src=""
+        alt="Live PC Screen Stream"
+        class="hidden w-full h-full object-contain pointer-events-none select-none"
+      />
+
+      <!-- Touch Indicator -->
+      <div id="touchRing" class="touch-indicator"></div>
+
+      <!-- Placeholder / Connecting State -->
+      <div id="streamPlaceholder" class="flex flex-col items-center justify-center text-center p-6 text-slate-400 space-y-3">
+        <div class="relative">
+          <div class="h-16 w-16 rounded-2xl bg-cyan-950/40 border border-cyan-800 flex items-center justify-center text-cyan-400 animate-pulse">
+            <i data-lucide="monitor" class="w-8 h-8"></i>
+          </div>
+          <span class="absolute top-0 right-0 h-3 w-3 rounded-full bg-cyan-400 animate-ping"></span>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-200">Awaiting Workstation Ngrok Feed</h3>
+          <p class="text-xs text-slate-500 font-mono mt-1 max-w-sm">
+            Run <code class="text-cyan-400 font-bold">python pc.py</code> on your PC, then connect above to view and control your screen live.
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <!-- MOUSE ACTION CONTROLS -->
+    <section class="liquid-glass rounded-2xl p-2.5 sm:p-3 flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar shadow-sm">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button
+          onclick="sendMouseAction('click')"
+          class="px-3 py-1.5 rounded-xl bg-cyan-500 text-slate-950 text-xs font-bold font-mono active:scale-95 transition-all cursor-pointer shadow-xs"
+        >
+          Left Click
+        </button>
+        <button
+          onclick="sendMouseAction('right_click')"
+          class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold font-mono active:scale-95 transition-all cursor-pointer shadow-xs"
+        >
+          Right Click
+        </button>
+        <button
+          onclick="sendMouseAction('double_click')"
+          class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold font-mono active:scale-95 transition-all cursor-pointer shadow-xs"
+        >
+          Double Click
+        </button>
+      </div>
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button
+          onclick="sendScroll('up')"
+          class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-bold active:scale-95 transition-all cursor-pointer flex items-center gap-1"
+        >
+          <i data-lucide="chevron-up" class="w-3.5 h-3.5"></i> Up
+        </button>
+        <button
+          onclick="sendScroll('down')"
+          class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-bold active:scale-95 transition-all cursor-pointer flex items-center gap-1"
+        >
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i> Down
+        </button>
+      </div>
+    </section>
+
+    <!-- QUICK MACRO ACTION DECK -->
+    <section class="liquid-glass rounded-2xl p-3 sm:p-4 space-y-2.5 shadow-sm">
+      <h2 class="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+        <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+        <span>Workstation Quick Macros</span>
+      </h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <button
+          onclick="triggerMacro('claude_continue')"
+          class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-left active:scale-95 transition-all cursor-pointer"
+        >
+          <div class="text-xs font-bold text-amber-400 flex items-center gap-1">
+            <i data-lucide="play" class="w-3 h-3"></i> Claude Continue
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono mt-0.5">Types "continue" + Enter</div>
+        </button>
+
+        <button
+          onclick="triggerMacro('restart_server')"
+          class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-left active:scale-95 transition-all cursor-pointer"
+        >
+          <div class="text-xs font-bold text-cyan-400 flex items-center gap-1">
+            <i data-lucide="terminal" class="w-3 h-3"></i> Restart Server
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono mt-0.5">Ctrl+C &amp; npm run dev</div>
+        </button>
+
+        <button
+          onclick="triggerMacro('git_quick_push')"
+          class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-left active:scale-95 transition-all cursor-pointer"
+        >
+          <div class="text-xs font-bold text-emerald-400 flex items-center gap-1">
+            <i data-lucide="git-branch" class="w-3 h-3"></i> Git Push
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono mt-0.5">add . &amp; commit &amp; push</div>
+        </button>
+
+        <button
+          onclick="triggerMacro('emergency_kill')"
+          class="p-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/50 border border-rose-800/60 text-left active:scale-95 transition-all cursor-pointer"
+        >
+          <div class="text-xs font-bold text-rose-400 flex items-center gap-1">
+            <i data-lucide="alert-octagon" class="w-3 h-3"></i> Emergency Kill
+          </div>
+          <div class="text-[10px] text-rose-300/70 font-mono mt-0.5">Double Ctrl+C interrupt</div>
+        </button>
+
+        <button
+          onclick="triggerMacro('lock_pc')"
+          class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-left active:scale-95 transition-all cursor-pointer"
+        >
+          <div class="text-xs font-bold text-indigo-400 flex items-center gap-1">
+            <i data-lucide="lock" class="w-3 h-3"></i> Lock Workstation
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono mt-0.5">Instant secure lock</div>
+        </button>
+
+        <button
+          onclick="triggerMacro('volume_mute')"
+          class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-left active:scale-95 transition-all cursor-pointer"
+        >
+          <div class="text-xs font-bold text-slate-300 flex items-center gap-1">
+            <i data-lucide="volume-x" class="w-3 h-3"></i> Mute Audio
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono mt-0.5">Toggle workstation mute</div>
+        </button>
+
+        <button
+          onclick="triggerMacro('volume_up')"
+          class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-left active:scale-95 transition-all cursor-pointer"
+        >
+          <div class="text-xs font-bold text-slate-300 flex items-center gap-1">
+            <i data-lucide="volume-2" class="w-3 h-3"></i> Volume Up
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono mt-0.5">+ Volume increment</div>
+        </button>
+
+        <button
+          onclick="triggerMacro('volume_down')"
+          class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-left active:scale-95 transition-all cursor-pointer"
+        >
+          <div class="text-xs font-bold text-slate-300 flex items-center gap-1">
+            <i data-lucide="volume-1" class="w-3 h-3"></i> Volume Down
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono mt-0.5">- Volume decrement</div>
+        </button>
+      </div>
+    </section>
+
+    <!-- VIRTUAL KEYBOARD / TEXT SENDER -->
+    <section class="liquid-glass rounded-2xl p-3 sm:p-4 space-y-2.5 shadow-sm">
+      <h2 class="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+        <i data-lucide="keyboard" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span>Send Text &amp; Keystrokes to PC</span>
+      </h2>
+      <div class="flex gap-2">
+        <input
+          id="textInputBuffer"
+          type="text"
+          placeholder="Type any text or code to write on your PC..."
+          class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-400"
+          onkeydown="if(event.key==='Enter') sendTextToPc();"
+        />
+        <button
+          onclick="sendTextToPc()"
+          class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-xs active:scale-95 transition-all cursor-pointer"
+        >
+          Send
+        </button>
+      </div>
+
+      <!-- Quick Key Buttons -->
+      <div class="flex flex-wrap gap-1.5 pt-1">
+        <button onclick="sendKey('enter')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer">Enter ↵</button>
+        <button onclick="sendKey('backspace')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer">⌫ Backspace</button>
+        <button onclick="sendKey('esc')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer">Esc</button>
+        <button onclick="sendKey('tab')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer">Tab</button>
+        <button onclick="sendKey('space')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer">Space</button>
+        <button onclick="sendKey('up')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer">▲</button>
+        <button onclick="sendKey('down')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer">▼</button>
+        <button onclick="sendKey('left')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer">◀</button>
+        <button onclick="sendKey('right')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 border border-slate-700 cursor-pointer">▶</button>
+      </div>
+    </section>
+
+    <!-- LIVE LOG DRAWER -->
+    <section class="liquid-glass rounded-2xl p-3 sm:p-4 space-y-1.5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="terminal-square" class="w-3.5 h-3.5 text-slate-400"></i>
+          <span>Agent Activity Log</span>
+        </h2>
+        <button onclick="clearLogs()" class="text-[10px] text-slate-500 hover:text-slate-300 font-mono cursor-pointer">Clear</button>
+      </div>
+      <div id="logConsole" class="h-24 overflow-y-auto rounded-xl bg-slate-950 p-2 font-mono text-[11px] text-slate-400 space-y-1 select-text">
+        <div class="text-cyan-400">> J.A.R.V.I.S. GitHub Pages controller loaded. Ready to connect.</div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // Lucide Icons initialization
+    lucide.createIcons();
+
+    // State
+    let socket = null;
+    let isConnected = false;
+    let isConnecting = false;
+    let selectedMonitor = "external";
+    let pingInterval = null;
+    let keepaliveInterval = null;
+    let lastPingSend = 0;
+
+    const inputTunnel = document.getElementById("inputTunnelUrl");
+    const inputAuth = document.getElementById("inputAuthToken");
+    const btnConnect = document.getElementById("btnConnect");
+    const btnConnectLabel = document.getElementById("btnConnectLabel");
+    const statusBadge = document.getElementById("connectionStatusBadge");
+    const statusDot = document.getElementById("statusIndicatorDot");
+    const statusText = document.getElementById("statusText");
+    const pingBadge = document.getElementById("pingBadge");
+    const liveStreamImg = document.getElementById("liveStreamImg");
+    const streamPlaceholder = document.getElementById("streamPlaceholder");
+    const screenContainer = document.getElementById("screenContainer");
+    const touchRing = document.getElementById("touchRing");
+    const logConsole = document.getElementById("logConsole");
+
+    // Load saved configurations from LocalStorage & URL Search Params
+    function initParams() {
+      const params = new URLSearchParams(window.location.search);
+      const urlParam = params.get("tunnel");
+      const authParam = params.get("auth");
+
+      const savedUrl = localStorage.getItem("jarvis_ngrok_url") || "";
+      const savedAuth = localStorage.getItem("jarvis_auth_token") || "JARVIS-7749";
+
+      inputTunnel.value = urlParam || savedUrl;
+      inputAuth.value = authParam || savedAuth;
+
+      // Auto-connect if tunnel parameter is present in URL
+      if (urlParam) {
+        log("Discovered 1-click tunnel URL from query parameter. Initiating connection...");
+        connectWebSocket();
+      } else if (savedUrl) {
+        // Optional auto-connect if user visited previously
+        log("Loaded saved ngrok tunnel configuration.");
+      }
+    }
+
+    function log(msg) {
+      const line = document.createElement("div");
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      line.textContent = `[${time}] ${msg}`;
+      logConsole.appendChild(line);
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+
+    function clearLogs() {
+      logConsole.innerHTML = '<div class="text-cyan-400">> Logs cleared.</div>';
+    }
+
+    // Toggle Connect / Disconnect
+    function toggleConnection() {
+      if (isConnected || isConnecting) {
+        disconnectWebSocket();
+      } else {
+        connectWebSocket();
+      }
+    }
+
+    function normalizeWsUrl(url) {
+      let u = url.trim();
+      if (!u) return "";
+      if (u.startsWith("http://")) u = u.replace("http://", "ws://");
+      if (u.startsWith("https://")) u = u.replace("https://", "wss://");
+      if (u.startsWith("tcp://")) u = u.replace("tcp://", "wss://");
+      // On HTTPS sites like GitHub Pages, plain ws:// is blocked by modern browsers (mixed content)
+      if (window.location.protocol === "https:" && u.startsWith("ws://")) {
+        u = u.replace("ws://", "wss://");
+      }
+      return u;
+    }
+
+    function connectWebSocket() {
+      const rawUrl = inputTunnel.value.trim();
+      const token = inputAuth.value.trim() || "JARVIS-7749";
+
+      if (!rawUrl) {
+        alert("Please enter your Ngrok WSS tunnel URL (e.g. wss://xxxx.ngrok-free.app)");
+        return;
+      }
+
+      const wsUrl = normalizeWsUrl(rawUrl);
+      inputTunnel.value = wsUrl;
+
+      // Save for persistence
+      localStorage.setItem("jarvis_ngrok_url", wsUrl);
+      localStorage.setItem("jarvis_auth_token", token);
+
+      if (socket) {
+        try { socket.close(); } catch (_) {}
+      }
+
+      isConnecting = true;
+      updateStatusUI();
+      log(`Connecting to ${wsUrl}...`);
+
+      try {
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+          isConnected = true;
+          isConnecting = false;
+          updateStatusUI();
+          log("✓ WebSocket connection established! Sending authentication...");
+
+          socket.send(JSON.stringify({ type: "auth", token }));
+          socket.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitor }));
+          socket.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
+
+          // Start ping tracker
+          clearInterval(pingInterval);
+          pingInterval = setInterval(sendPing, 4000);
+
+          // Frame requester interval
+          clearInterval(keepaliveInterval);
+          keepaliveInterval = setInterval(() => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
+            }
+          }, 2500);
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+
+            if (data.type === "pong") {
+              const latency = Date.now() - lastPingSend;
+              pingBadge.textContent = `${latency}ms`;
+              pingBadge.classList.remove("hidden");
+            } else if (data.type === "screen_frame") {
+              if (data.activeMonitor && data.activeMonitor !== selectedMonitor) return;
+              liveStreamImg.src = data.frame;
+              liveStreamImg.classList.remove("hidden");
+              streamPlaceholder.classList.add("hidden");
+            } else if (data.type === "directive_response") {
+              log(`[PC] ${data.result}`);
+            } else if (data.type === "auth_success") {
+              log("✓ Authenticated with PC successfully! Monitor streaming active.");
+            } else if (data.type === "pc_status") {
+              if (data.status === "online") {
+                log("Workstation is ONLINE. Streaming feed.");
+              }
+            }
+          } catch (_) {
+            log(`[PC Msg] ${event.data}`);
+          }
+        };
+
+        socket.onerror = (err) => {
+          log("⚠️ WebSocket connection error. Verify that 'python pc.py' and ngrok are running.");
+        };
+
+        socket.onclose = () => {
+          isConnected = false;
+          isConnecting = false;
+          updateStatusUI();
+          log("WebSocket closed.");
+          clearInterval(pingInterval);
+          clearInterval(keepaliveInterval);
+        };
+
+      } catch (err) {
+        isConnecting = false;
+        isConnected = false;
+        updateStatusUI();
+        log(`Connection exception: ${err.message}`);
+      }
+    }
+
+    function disconnectWebSocket() {
+      if (socket) {
+        socket.close();
+        socket = null;
+      }
+      isConnected = false;
+      isConnecting = false;
+      clearInterval(pingInterval);
+      clearInterval(keepaliveInterval);
+      updateStatusUI();
+      liveStreamImg.classList.add("hidden");
+      streamPlaceholder.classList.remove("hidden");
+      log("Disconnected from workstation.");
+    }
+
+    function sendPing() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        lastPingSend = Date.now();
+        socket.send(JSON.stringify({ type: "ping" }));
+      }
+    }
+
+    function updateStatusUI() {
+      if (isConnected) {
+        statusDot.className = "h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]";
+        statusText.textContent = "ONLINE (Ngrok)";
+        statusText.className = "font-bold text-emerald-400";
+        btnConnectLabel.textContent = "Disconnect";
+        btnConnect.className = "w-full sm:w-auto px-5 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 active:scale-95 text-white font-mono font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer h-[34px]";
+      } else if (isConnecting) {
+        statusDot.className = "h-2 w-2 rounded-full bg-amber-400 animate-ping";
+        statusText.textContent = "Connecting...";
+        statusText.className = "font-bold text-amber-400";
+        btnConnectLabel.textContent = "Connecting...";
+        btnConnect.className = "w-full sm:w-auto px-5 py-2 rounded-xl bg-amber-500 text-slate-950 font-mono font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer h-[34px]";
+        pingBadge.classList.add("hidden");
+      } else {
+        statusDot.className = "h-2 w-2 rounded-full bg-slate-500";
+        statusText.textContent = "Disconnected";
+        statusText.className = "font-bold text-slate-400";
+        btnConnectLabel.textContent = "Connect Ngrok";
+        btnConnect.className = "w-full sm:w-auto px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-mono font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer h-[34px]";
+        pingBadge.classList.add("hidden");
+      }
+    }
+
+    // Monitor Switching
+    function switchMonitor(mon) {
+      selectedMonitor = mon;
+      document.getElementById("btnMonExternal").className = mon === "external"
+        ? "px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 transition-all cursor-pointer"
+        : "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer";
+      document.getElementById("btnMonPrimary").className = mon === "primary"
+        ? "px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 transition-all cursor-pointer"
+        : "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer";
+      document.getElementById("btnMonAll").className = mon === "all"
+        ? "px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 transition-all cursor-pointer"
+        : "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer";
+
+      log(`Switching monitor feed to: ${mon}`);
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "start_stream", monitor: mon }));
+        socket.send(JSON.stringify({ type: "request_frame", monitor: mon }));
+      }
+    }
+
+    function requestScreenFrame() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitor }));
+        log("Requested fresh screen frame.");
+      }
+    }
+
+    // Touch and Mouse Interaction
+    screenContainer.addEventListener("pointerdown", handlePointer);
+
+    function handlePointer(e) {
+      if (!isConnected || !socket) return;
+      const rect = screenContainer.getBoundingClientRect();
+      const xRel = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const yRel = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+      // Show touch feedback ring
+      touchRing.style.left = `${(e.clientX - rect.left)}px`;
+      touchRing.style.top = `${(e.clientY - rect.top)}px`;
+      touchRing.style.display = "block";
+      setTimeout(() => { touchRing.style.display = "none"; }, 400);
+
+      // Send to PC
+      socket.send(JSON.stringify({
+        type: "mouse_click",
+        button: "left",
+        xRel,
+        yRel,
+        monitor: selectedMonitor
+      }));
+    }
+
+    function sendMouseAction(buttonType) {
+      if (!isConnected || !socket) {
+        log("Not connected to workstation.");
+        return;
+      }
+      socket.send(JSON.stringify({
+        type: "mouse_click",
+        button: buttonType,
+        xRel: 0.5,
+        yRel: 0.5,
+        monitor: selectedMonitor
+      }));
+      log(`Sent ${buttonType} at center.`);
+    }
+
+    function sendScroll(direction) {
+      if (!isConnected || !socket) return;
+      socket.send(JSON.stringify({
+        type: "mouse_scroll",
+        direction: direction,
+        amount: direction === "up" ? 4 : -4
+      }));
+    }
+
+    // Macro Commands
+    function triggerMacro(action) {
+      if (!isConnected || !socket) {
+        alert("Please connect to your workstation first.");
+        return;
+      }
+      socket.send(JSON.stringify({
+        type: "macro",
+        action: action
+      }));
+      log(`⚡ Triggered macro: ${action}`);
+    }
+
+    // Keystroke & Typing Commands
+    function sendTextToPc() {
+      const txt = document.getElementById("textInputBuffer").value;
+      if (!txt) return;
+      if (!isConnected || !socket) {
+        alert("Please connect to your workstation first.");
+        return;
+      }
+      socket.send(JSON.stringify({
+        type: "keyboard_type",
+        text: txt
+      }));
+      log(`Typed on PC: "${txt}"`);
+      document.getElementById("textInputBuffer").value = "";
+    }
+
+    function sendKey(keyName) {
+      if (!isConnected || !socket) return;
+      socket.send(JSON.stringify({
+        type: "keyboard_key",
+        key: keyName
+      }));
+      log(`Pressed key: ${keyName.toUpperCase()}`);
+    }
+
+    // 1-Click Link Copy
+    function copyShareableLink() {
+      const u = inputTunnel.value.trim();
+      const a = inputAuth.value.trim();
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}?tunnel=${encodeURIComponent(u)}&auth=${encodeURIComponent(a)}`;
+
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        const notice = document.getElementById("copyLinkNotice");
+        notice.textContent = "Copied to Clipboard!";
+        setTimeout(() => { notice.textContent = "Copy 1-Click Link"; }, 2500);
+      });
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        screenContainer.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // Run on startup
+    initParams();
+  </script>
+</body>
+</html>
