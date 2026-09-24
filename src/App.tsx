@@ -1458,20 +1458,28 @@ export default function App() {
             </div>
 
             {/* GitHub Pages Guide */}
-            <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1.5 shadow-sm">
+            <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-2 shadow-sm">
               <div className="flex items-center justify-between">
                 <span className="text-cyan-400 font-bold flex items-center gap-1">
                   <Globe className="h-3.5 w-3.5 text-cyan-400" />
-                  <span>GitHub Pages Remote URL:</span>
+                  <span>Your GitHub Pages URL (github.io):</span>
                 </span>
                 <span className="text-[10px] text-emerald-400 font-bold">Works with Ngrok</span>
               </div>
-              <p className="text-slate-400 text-[10px] leading-relaxed">
-                Put <code className="text-cyan-300">control.html</code> in your GitHub repository (<code className="text-white">myusername/remote-control</code>) and enable GitHub Pages in Settings &gt; Pages. You can then control your PC from anywhere at:
-              </p>
-              <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 text-cyan-300 text-[10px] break-all select-all">
-                https://&lt;your-username&gt;.github.io/remote-control/control.html
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-cyan-500/30 text-cyan-300 text-[11px] font-bold break-all select-all flex items-center justify-between">
+                <span>https://Akshat2482.github.io/Remote-Control/control.html</span>
+                <a
+                  href={`https://Akshat2482.github.io/Remote-Control/control.html?tunnel=${encodeURIComponent(tunnelUrl)}&auth=${encodeURIComponent(secretAuth)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-2 text-[10px] text-cyan-400 hover:text-cyan-200 underline shrink-0"
+                >
+                  Open ↗
+                </a>
               </div>
+              <p className="text-amber-300 text-[10px] leading-relaxed font-sans">
+                ⚠️ <strong>Note:</strong> GitHub Pages uses <strong>.github.io</strong>, NOT <strong>github.com</strong>.
+              </p>
             </div>
 
             {/* Quick Terminal Guide */}

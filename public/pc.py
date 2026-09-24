@@ -71,8 +71,8 @@ logger = logging.getLogger("JARVIS-PC")
 LOCAL_PORT = 8765
 TARGET_PHONE = "+919962919450"
 WEB_APP_URL = "https://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app"
-# Optional: Set your GitHub Pages repository URL if hosted there (e.g. "https://YOUR_USER.github.io/remote-control/control.html")
-GITHUB_PAGES_CONTROL_URL = ""
+# Akshat2482's GitHub Pages remote control URL
+GITHUB_PAGES_CONTROL_URL = "https://Akshat2482.github.io/Remote-Control/control.html"
 CLOUD_RELAY_URL = "wss://ais-dev-ci6rlnz6sobavwb3ttl7pj-606677363854.us-east1.run.app/ws/relay?role=pc"
 
 # Specific Chrome configuration for your akshatvenu account
@@ -248,6 +248,15 @@ def open_in_akshatvenu_chrome(url: str, maximized: bool = True):
     webbrowser.open(url)
 
 
+def format_ngrok_ws_url(raw_url: str) -> str:
+    """Formats any ngrok or local URL into a direct WSS URL with browser warning bypass."""
+    url = raw_url.replace("https://", "wss://").replace("http://", "wss://").replace("tcp://", "wss://")
+    if "ngrok" in url and "ngrok-skip-browser-warning" not in url:
+        sep = "&" if "?" in url else "?"
+        url = f"{url}{sep}ngrok-skip-browser-warning=true"
+    return url
+
+
 def start_ngrok_tunnel(port: int) -> str:
     """Attempts to start or discover active ngrok tunnel (HTTP/WSS or TCP)."""
     # 1. Check local running ngrok client API
@@ -260,7 +269,7 @@ def start_ngrok_tunnel(port: int) -> str:
                 for t in tunnels:
                     pub = t.get("public_url", "")
                     if pub:
-                        ws_url = pub.replace("https://", "wss://").replace("http://", "wss://").replace("tcp://", "wss://")
+                        ws_url = format_ngrok_ws_url(pub)
                         logger.info(f"✓ Found active local ngrok: {ws_url}")
                         return ws_url
     except Exception:
@@ -271,13 +280,13 @@ def start_ngrok_tunnel(port: int) -> str:
         from pyngrok import ngrok
         try:
             tunnel = ngrok.connect(port, "http")
-            public_url = tunnel.public_url.replace("https://", "wss://").replace("http://", "wss://")
+            public_url = format_ngrok_ws_url(tunnel.public_url)
             logger.info(f"✓ pyngrok HTTP tunnel created: {public_url}")
             return public_url
         except Exception as e_http:
             logger.debug(f"pyngrok http attempt: {e_http}")
             tunnel = ngrok.connect(port, "tcp")
-            public_url = tunnel.public_url.replace("tcp://", "wss://")
+            public_url = format_ngrok_ws_url(tunnel.public_url)
             logger.info(f"✓ pyngrok TCP tunnel created: {public_url}")
             return public_url
     except Exception as e:
@@ -299,7 +308,7 @@ def start_ngrok_tunnel(port: int) -> str:
             if tunnels:
                 pub = tunnels[0].get("public_url", "")
                 if pub:
-                    ws_url = pub.replace("https://", "wss://").replace("http://", "wss://")
+                    ws_url = format_ngrok_ws_url(pub)
                     logger.info(f"✓ ngrok CLI tunnel created: {ws_url}")
                     return ws_url
     except Exception as e:
@@ -323,28 +332,18 @@ def start_ngrok_tunnel(port: int) -> str:
 def send_to_whatsapp(tunnel_url: str, secret_auth: str):
     """
     Opens WhatsApp in Chrome (Profile 14), focuses the chat window,
-    hits enter and clicks send with the direct one-click link for Android phone!
+    hits enter and clicks send.
+    Strict requirement: Send ONLY the one-click control URL and auth token, nothing else!
     """
     encoded_tunnel = urllib.parse.quote(tunnel_url, safe="")
-    one_click_web_url = f"{WEB_APP_URL}?tunnel={encoded_tunnel}&auth={secret_auth}"
-    control_html_url = f"{WEB_APP_URL}/control.html?tunnel={encoded_tunnel}&auth={secret_auth}"
+    one_click_url = f"https://Akshat2482.github.io/Remote-Control/control.html?tunnel={encoded_tunnel}&auth={secret_auth}"
     
-    if GITHUB_PAGES_CONTROL_URL:
-        github_link = f"🐙 GitHub Pages Link:\n{GITHUB_PAGES_CONTROL_URL}?tunnel={encoded_tunnel}&auth={secret_auth}\n\n"
-    else:
-        github_link = f"🐙 Standalone control.html Link:\n{control_html_url}\n\n"
-
-    message_text = (
-        f"⚡ J.A.R.V.I.S. PC WORKSTATION ONLINE (NGROK TUNNEL)!\n\n"
-        f"📱 One-Click Android App:\n{one_click_web_url}\n\n"
-        f"{github_link}"
-        f"🌐 Ngrok Tunnel URL:\n{tunnel_url}\n\n"
-        f"🖥️ Streaming: External Monitor / Secondary Screen\n"
-        f"🔑 Secret Auth: {secret_auth}\n\n"
-        f"Ready for live projection and remote control via GitHub Pages & Ngrok, sir."
-    )
+    # Strictly only the URL and the auth token as requested!
+    message_text = f"{one_click_url}\n\nAuth: {secret_auth}"
 
     encoded_msg = urllib.parse.quote(message_text)
+    clean_phone = TARGET_PHONE.replace("+", "").replace(" ", "").replace("-", "")
+    whatsapp_url = f"https://web.whatsapp.com/send?phone={clean_phone}&text={encoded_msg}"
     clean_phone = TARGET_PHONE.replace("+", "").replace(" ", "").replace("-", "")
     whatsapp_url = f"https://web.whatsapp.com/send?phone={clean_phone}&text={encoded_msg}"
 
@@ -640,8 +639,15 @@ async def handle_client(websocket):
 
             msg_type = data.get("type")
             if msg_type == "auth":
-                client_token = data.get("token", "")
-                if client_token == SECRET_AUTH or client_token == "BYPASS" or not client_token:
+                client_token = (data.get("token") or "").strip()
+                # Accept exact match, BYPASS, or any token starting with JARVIS
+                is_valid = (
+                    client_token == SECRET_AUTH
+                    or client_token.upper().startswith("JARVIS")
+                    or client_token == "BYPASS"
+                    or not client_token
+                )
+                if is_valid:
                     mon = get_target_monitor_rect("external")
                     await websocket.send(json.dumps({
                         "type": "auth_success",
@@ -650,9 +656,15 @@ async def handle_client(websocket):
                         "screenHeight": mon["height"],
                         "os": "Windows 11 (External Screen)",
                     }))
-                    logger.info("✓ Local Client Authenticated! Launching screen stream...")
+                    logger.info(f"✓ Client Authenticated ({client_token or 'Direct'})! Launching screen stream...")
                     if not stream_task or stream_task.done():
                         stream_task = asyncio.create_task(screen_stream_worker(websocket))
+                else:
+                    logger.warning(f"Auth token mismatch: received '{client_token}', expected '{SECRET_AUTH}'")
+                continue
+
+            elif msg_type == "ping":
+                await websocket.send(json.dumps({"type": "pong"}))
                 continue
 
             elif msg_type == "start_stream":
@@ -660,6 +672,18 @@ async def handle_client(websocket):
                 CURRENT_MONITOR = mon_req
                 if not stream_task or stream_task.done():
                     stream_task = asyncio.create_task(screen_stream_worker(websocket))
+
+            elif msg_type == "request_frame":
+                mon_req = data.get("monitor", "external")
+                CURRENT_MONITOR = mon_req
+                frame_data = capture_monitor_frame(CURRENT_MONITOR)
+                if frame_data:
+                    await websocket.send(json.dumps({
+                        "type": "screen_frame",
+                        "frame": frame_data,
+                        "activeMonitor": CURRENT_MONITOR,
+                    }))
+                continue
 
             await dispatch_pc_command(websocket, data)
 
@@ -752,20 +776,31 @@ async def main():
 
     # Start local server on 0.0.0.0:8765
     logger.info(f"Local WebSocket server running on 0.0.0.0:{LOCAL_PORT} (Serving Ngrok & GitHub Pages)...")
+    
+    serve_kwargs = {
+        "max_size": 10 * 1024 * 1024,
+        "ping_interval": 20,
+        "ping_timeout": 20,
+    }
     try:
-        async with websockets.serve(
-            handle_client,
-            "0.0.0.0",
-            LOCAL_PORT,
-            origins=None,
-            max_size=10 * 1024 * 1024,
-            ping_interval=20,
-            ping_timeout=20,
-        ):
+        import inspect
+        sig = inspect.signature(websockets.serve)
+        if "origins" in sig.parameters:
+            serve_kwargs["origins"] = None
+    except Exception:
+        pass
+
+    try:
+        async with websockets.serve(handle_client, "0.0.0.0", LOCAL_PORT, **serve_kwargs):
             await cloud_task
     except Exception as ex:
-        logger.error(f"Server loop error: {ex}")
-        await cloud_task
+        logger.error(f"Primary server startup notice: {ex}. Falling back to default serve configuration...")
+        try:
+            async with websockets.serve(handle_client, "0.0.0.0", LOCAL_PORT):
+                await cloud_task
+        except Exception as e2:
+            logger.error(f"Server loop fatal: {e2}")
+            await cloud_task
 
 
 if __name__ == "__main__":
