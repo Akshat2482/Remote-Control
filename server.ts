@@ -1,6 +1,7 @@
 import http from "http";
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
@@ -72,7 +73,7 @@ function isQuestionOrAiQuery(cmd: string): boolean {
   );
 }
 
-// Multimodal screen analysis using Gemini 3.1 Flash-Lite (cheapest, ultra-low cost model) with robust fallback
+// Multimodal screen analysis using Gemini 3.6 Flash with robust fallback
 async function analyzeScreenContent(userPrompt: string, screenImage?: string | null): Promise<string> {
   const effectiveImage = screenImage || latestScreenFrame;
   const ai = getGeminiClient();
@@ -103,7 +104,7 @@ async function analyzeScreenContent(userPrompt: string, screenImage?: string | n
       });
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: "gemini-3.6-flash",
         contents: parts.length === 1 ? parts[0].text : { parts },
         config: {
           systemInstruction: `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), Tony Stark's personal high-tech AI.
@@ -176,7 +177,7 @@ app.post("/api/jarvis/extract-text", async (req, res) => {
       const base64Data = effectiveImage.substring(commaIdx + 1);
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: "gemini-3.6-flash",
         contents: {
           parts: [
             {
@@ -197,7 +198,7 @@ app.post("/api/jarvis/extract-text", async (req, res) => {
         return res.json({
           text: extracted,
           success: true,
-          source: "gemini-3.1-flash-lite-ocr",
+          source: "gemini-3.6-flash-ocr",
         });
       }
     } catch (err: any) {
@@ -228,7 +229,7 @@ app.post("/api/jarvis/claude-watchdog", async (req, res) => {
       const base64Data = effectiveImage.substring(commaIdx + 1);
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: "gemini-3.6-flash",
         contents: {
           parts: [
             {
@@ -303,7 +304,7 @@ app.post("/api/jarvis/chat", async (req, res) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-3.6-flash",
       contents: userPrompt,
       config: {
         systemInstruction: `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System). Crisp, concise, polite, loyal.
@@ -350,7 +351,7 @@ app.post("/api/jarvis/plan", async (req, res) => {
   if (ai) {
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: "gemini-3.6-flash",
         contents: `You are the J.A.R.V.I.S. neural workstation AI planner. Translate the user's natural language command into executable computer actions.
 User command: "${userCmd}".
 Return valid JSON only with this schema:
@@ -421,6 +422,41 @@ Return valid JSON only with this schema:
   return res.json({ summary, actions });
 });
 
+// Dynamic /pc.py script serving that automatically points to the current server instance host
+app.get(["/pc.py", "/api/pc-script"], (req, res) => {
+  const host = req.get("host") || `localhost:${PORT}`;
+  const protocol = req.protocol === "https" || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  const wsProtocol = protocol === "https" ? "wss" : "ws";
+
+  const publicPy = path.join(__dirname, "public", "pc.py");
+  const rootPy = path.join(__dirname, "pc.py");
+  const targetFile = fs.existsSync(publicPy) ? publicPy : rootPy;
+
+  if (fs.existsSync(targetFile)) {
+    let script = fs.readFileSync(targetFile, "utf-8");
+    script = script.replace(/WEB_APP_URL\s*=\s*["'][^"']*["']/, `WEB_APP_URL = "${protocol}://${host}"`);
+    script = script.replace(/CLOUD_RELAY_URL\s*=\s*["'][^"']*["']/, `CLOUD_RELAY_URL = "${wsProtocol}://${host}/ws/relay?role=pc"`);
+
+    res.setHeader("Content-Type", "text/x-python; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="pc.py"');
+    return res.send(script);
+  }
+  return res.status(404).send("# Error: pc.py not found on server");
+});
+
+// Health & Relay diagnostic endpoint
+app.get("/api/relay-status", (_req, res) => {
+  res.json({
+    status: "ok",
+    relay: "online",
+    pcOnline: pcTelemetry.online,
+    connectedPhones: phoneClientSockets.size,
+    screenWidth: pcTelemetry.screenWidth,
+    screenHeight: pcTelemetry.screenHeight,
+    hasLiveFrame: !!latestScreenFrame,
+  });
+});
+
 // Start Server with Vite Middleware & WebSocket Relay
 async function startServer() {
   const server = http.createServer(app);
@@ -428,11 +464,35 @@ async function startServer() {
   // Attach WebSocket Relay Server on path /ws/relay
   const wss = new WebSocketServer({ server, path: "/ws/relay" });
 
-  wss.on("connection", (ws, req) => {
+  // Cloud Run / Proxy Keepalive ping every 25 seconds
+  const heartbeatInterval = setInterval(() => {
+    wss.clients.forEach((wsClient: any) => {
+      if (wsClient.isAlive === false) {
+        return wsClient.terminate();
+      }
+      wsClient.isAlive = false;
+      try {
+        wsClient.ping();
+      } catch {
+        // ignore ping error
+      }
+    });
+  }, 25000);
+
+  wss.on("close", () => {
+    clearInterval(heartbeatInterval);
+  });
+
+  wss.on("connection", (ws: any, req) => {
+    ws.isAlive = true;
+    ws.on("pong", () => {
+      ws.isAlive = true;
+    });
+
     const urlParams = new URL(req.url || "", `http://${req.headers.host}`).searchParams;
     const role = urlParams.get("role") || "phone"; // 'pc' or 'phone'
 
-    ws.on("error", (err) => {
+    ws.on("error", (err: any) => {
       console.warn(`WebSocket error (${role}):`, err.message);
     });
 
@@ -488,7 +548,17 @@ async function startServer() {
       console.log("📱 Phone client connected to Cloud Relay Hub");
       phoneClientSockets.add(ws);
 
-      // Send initial PC status to phone immediately
+      // Send initial relay confirmation + PC status to phone immediately
+      ws.send(
+        JSON.stringify({
+          type: "relay_connected",
+          status: "connected",
+          cloudRelayOnline: true,
+          pcOnline: pcTelemetry.online,
+          screenWidth: pcTelemetry.screenWidth,
+          screenHeight: pcTelemetry.screenHeight,
+        })
+      );
       ws.send(
         JSON.stringify({
           type: "pc_status",

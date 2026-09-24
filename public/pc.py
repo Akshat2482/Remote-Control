@@ -247,7 +247,7 @@ def open_in_akshatvenu_chrome(url: str, maximized: bool = True):
 
 
 def start_ngrok_tunnel(port: int) -> str:
-    """Attempts to start ngrok via pyngrok, local client, or system binary."""
+    """Attempts to start or discover active ngrok tunnel (HTTP/WSS or TCP)."""
     # 1. Check local running ngrok client API
     try:
         import urllib.request
@@ -255,25 +255,55 @@ def start_ngrok_tunnel(port: int) -> str:
             data = json.loads(resp.read().decode())
             tunnels = data.get("tunnels", [])
             if tunnels:
-                url = tunnels[0].get("public_url", "")
-                if url:
-                    ws_url = url.replace("https://", "wss://").replace("http://", "ws://").replace("tcp://", "wss://")
-                    logger.info(f"✓ Found active local ngrok: {ws_url}")
-                    return ws_url
+                for t in tunnels:
+                    pub = t.get("public_url", "")
+                    if pub:
+                        ws_url = pub.replace("https://", "wss://").replace("http://", "wss://").replace("tcp://", "wss://")
+                        logger.info(f"✓ Found active local ngrok: {ws_url}")
+                        return ws_url
     except Exception:
         pass
 
-    # 2. Try pyngrok if installed
+    # 2. Try pyngrok with HTTP tunnel (recommended for free tier, supports WSS over HTTPS)
     try:
         from pyngrok import ngrok
-        tunnel = ngrok.connect(port, "tcp")
-        public_url = tunnel.public_url.replace("tcp://", "wss://")
-        logger.info(f"✓ pyngrok tunnel created: {public_url}")
-        return public_url
+        try:
+            tunnel = ngrok.connect(port, "http")
+            public_url = tunnel.public_url.replace("https://", "wss://").replace("http://", "wss://")
+            logger.info(f"✓ pyngrok HTTP tunnel created: {public_url}")
+            return public_url
+        except Exception as e_http:
+            logger.debug(f"pyngrok http attempt: {e_http}")
+            tunnel = ngrok.connect(port, "tcp")
+            public_url = tunnel.public_url.replace("tcp://", "wss://")
+            logger.info(f"✓ pyngrok TCP tunnel created: {public_url}")
+            return public_url
     except Exception as e:
         logger.debug(f"pyngrok attempt: {e}")
 
-    # 3. Fallback to local Wi-Fi IP
+    # 3. Try launching ngrok CLI via subprocess
+    try:
+        logger.info("Attempting to launch ngrok CLI (ngrok http 8765)...")
+        subprocess.Popen(
+            ["ngrok", "http", str(port), "--log=stdout"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        time.sleep(2.5)
+        import urllib.request
+        with urllib.request.urlopen("http://127.0.0.1:4040/api/tunnels", timeout=2) as resp:
+            data = json.loads(resp.read().decode())
+            tunnels = data.get("tunnels", [])
+            if tunnels:
+                pub = tunnels[0].get("public_url", "")
+                if pub:
+                    ws_url = pub.replace("https://", "wss://").replace("http://", "wss://")
+                    logger.info(f"✓ ngrok CLI tunnel created: {ws_url}")
+                    return ws_url
+    except Exception as e:
+        logger.debug(f"ngrok CLI subprocess attempt: {e}")
+
+    # 4. Fallback to local Wi-Fi IP
     import socket
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -293,15 +323,15 @@ def send_to_whatsapp(tunnel_url: str, secret_auth: str):
     Opens WhatsApp in Chrome (Profile 14), focuses the chat window,
     hits enter and clicks send with the direct one-click link for Android phone!
     """
-    one_click_url = f"{WEB_APP_URL}?auth={secret_auth}"
+    encoded_tunnel = urllib.parse.quote(tunnel_url, safe="")
+    one_click_url = f"{WEB_APP_URL}?tunnel={encoded_tunnel}&auth={secret_auth}"
     message_text = (
-        f"⚡ J.A.R.V.I.S. PC WORKSTATION ONLINE!\n\n"
+        f"⚡ J.A.R.V.I.S. PC WORKSTATION ONLINE (NGROK TUNNEL)!\n\n"
         f"📱 One-Click Android Connection:\n{one_click_url}\n\n"
+        f"🌐 Ngrok Tunnel URL:\n{tunnel_url}\n\n"
         f"🖥️ Streaming: External Monitor / Secondary Screen\n"
-        f"☁️ Cloud Relay: Active (Zero mixed-content issues, works on 4G/5G/Wi-Fi)\n"
-        f"🔑 Secret Auth: {secret_auth}\n"
-        f"🌐 Local Tunnel: {tunnel_url}\n\n"
-        f"Ready for live projection and remote control, sir."
+        f"🔑 Secret Auth: {secret_auth}\n\n"
+        f"Ready for live projection and remote control via Ngrok, sir."
     )
 
     encoded_msg = urllib.parse.quote(message_text)
@@ -665,9 +695,9 @@ async def cloud_relay_worker():
                         except Exception:
                             continue
 
-                        if data.get("type") == "start_stream":
-                            mon_req = data.get("monitor", "external")
-                            CURRENT_MONITOR = mon_req
+                            if data.get("type") == "start_stream":
+                                mon_req = data.get("monitor", "external")
+                                CURRENT_MONITOR = mon_req
 
                         await dispatch_pc_command(ws, data)
                 finally:
@@ -684,6 +714,7 @@ async def cloud_relay_worker():
 async def main():
     print("\n" + "=" * 68)
     print("   J.A.R.V.I.S. WORKSTATION - EXTERNAL SCREEN STREAMING AGENT")
+    print("   [POWERED BY NGROK WSS TUNNEL]")
     print("=" * 68)
 
     monitors = get_all_windows_monitors()
@@ -696,20 +727,20 @@ async def main():
 
     print("\n" + "#" * 68)
     print(f"  [STREAMING TARGET] : EXTERNAL SCREEN (Monitor 2 / Secondary)")
-    print(f"  [CLOUD RELAY HUB]  : ACTIVE & ANDROID READY (WSS)")
+    print(f"  [NGROK TUNNEL URL] : {tunnel_url}")
     print(f"  [SECRET AUTH TOKEN]: {SECRET_AUTH}")
     print(f"  [TARGET WHATSAPP]  : {TARGET_PHONE} (You)")
     print(f"  [CHROME PROFILE]   : {CHROME_PROFILE} (akshatvenu)")
     print("#" * 68 + "\n")
 
-    # Send WhatsApp with one-click direct Android link
+    # Send WhatsApp with one-click direct Android link including ngrok tunnel
     send_to_whatsapp(tunnel_url, SECRET_AUTH)
 
-    # Launch Cloud Relay background task
+    # Optional Cloud Relay background task
     cloud_task = asyncio.create_task(cloud_relay_worker())
 
     # Start local server on 0.0.0.0:8765
-    logger.info(f"Local WebSocket server running on 0.0.0.0:{LOCAL_PORT}...")
+    logger.info(f"Local WebSocket server running on 0.0.0.0:{LOCAL_PORT} (Serving Ngrok)...")
     try:
         async with websockets.serve(handle_client, "0.0.0.0", LOCAL_PORT):
             await cloud_task

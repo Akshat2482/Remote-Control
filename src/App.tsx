@@ -234,10 +234,24 @@ export default function App() {
     let url = (urlToUse || tunnelUrl).trim();
     const token = authToken || secretAuth;
 
-    // Secure fallback: if on HTTPS and url starts with insecure ws://, upgrade to Cloud Relay
-    if (window.location.protocol === "https:" && url.startsWith("ws://")) {
+    // Auto-normalize protocol
+    if (url.startsWith("https://")) {
+      url = url.replace("https://", "wss://");
+    } else if (url.startsWith("http://")) {
+      url = url.replace("http://", "ws://");
+    } else if (url.startsWith("tcp://")) {
+      url = url.replace("tcp://", "wss://");
+    }
+
+    // If using an ngrok tunnel on HTTPS page, ensure it uses wss:// to prevent mixed-content blocking
+    if (url.includes("ngrok") && url.startsWith("ws://") && window.location.protocol === "https:") {
+      url = url.replace("ws://", "wss://");
+    }
+
+    // Only fallback to Cloud Relay if on HTTPS and url starts with plain insecure ws:// and NOT ngrok
+    if (window.location.protocol === "https:" && url.startsWith("ws://") && !url.includes("ngrok")) {
       const secureRelay = `wss://${window.location.host}/ws/relay?role=phone`;
-      setRelayNotice("Switched to Secure Cloud Relay (WSS) to prevent Android mixed-content blocking.");
+      setRelayNotice("Switched to Cloud Relay (WSS) because plain local ws:// is blocked on HTTPS. Use an Ngrok wss:// tunnel for direct connection.");
       url = secureRelay;
     }
 
@@ -266,7 +280,12 @@ export default function App() {
         ws.send(JSON.stringify({ type: "auth", token }));
         ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitorRef.current }));
         ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitorRef.current }));
-        addJarvisMessage(`Connected to workstation via ${url.includes("ws/relay") ? "Secure Cloud Relay" : url}. Streaming monitor feed.`);
+        const connLabel = url.includes("ngrok")
+          ? `Ngrok Tunnel (${url})`
+          : url.includes("ws/relay")
+          ? "Secure Cloud Relay"
+          : url;
+        addJarvisMessage(`Connected to workstation via ${connLabel}. Streaming monitor feed.`);
       };
 
       ws.onmessage = (event) => {
@@ -277,10 +296,11 @@ export default function App() {
               setIsConnected(true);
               ws.send(JSON.stringify({ type: "start_stream", monitor: selectedMonitorRef.current }));
               ws.send(JSON.stringify({ type: "request_frame", monitor: selectedMonitorRef.current }));
-              addJarvisMessage("Workstation is ONLINE via Cloud Relay. Streaming monitor feed.");
+              const connLabel = url.includes("ngrok") ? "Ngrok" : "Cloud Relay";
+              addJarvisMessage(`Workstation is ONLINE via ${connLabel}. Streaming monitor feed.`);
             } else {
               setIsConnected(false);
-              addJarvisMessage("Cloud Relay active. Waiting for PC workstation (run 'python pc.py' on PC)...");
+              addJarvisMessage("Waiting for PC workstation (run 'python pc.py' on PC)...");
             }
           } else if (data.type === "screen_frame") {
             // Strictly check that the incoming frame matches the user's requested monitor
@@ -336,11 +356,14 @@ export default function App() {
     const token = authParam || secretAuth;
     if (authParam) setSecretAuth(authParam);
 
-    const defaultProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const defaultRelayUrl = `${defaultProtocol}//${window.location.host}/ws/relay?role=phone`;
-
-    const targetUrl = tunnelParam || defaultRelayUrl;
-    handleConnectTunnel(targetUrl, token);
+    if (tunnelParam) {
+      setTunnelUrl(tunnelParam);
+      handleConnectTunnel(tunnelParam, token);
+    } else {
+      const defaultProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const defaultRelayUrl = `${defaultProtocol}//${window.location.host}/ws/relay?role=phone`;
+      handleConnectTunnel(defaultRelayUrl, token);
+    }
 
     // Keepalive / frame requester interval if connected
     const keepaliveInterval = setInterval(() => {
@@ -921,7 +944,13 @@ export default function App() {
                       }`}
                     />
                     <span className="truncate">
-                      {isConnected ? "Online (Cloud Relay)" : isConnecting ? "Connecting..." : "Awaiting PC Feed"}
+                      {isConnected
+                        ? tunnelUrl.includes("ngrok")
+                          ? "Online (Ngrok)"
+                          : "Online (Cloud Relay)"
+                        : isConnecting
+                        ? "Connecting..."
+                        : "Awaiting PC Feed"}
                     </span>
                   </span>
                   <span className="text-slate-400 shrink-0">|</span>
@@ -1349,9 +1378,22 @@ export default function App() {
                 type="text"
                 value={tunnelUrl}
                 onChange={(e) => setTunnelUrl(e.target.value)}
-                placeholder="wss://0.tcp.ngrok.io:12345"
+                placeholder="wss://0.tcp.ngrok.io:12345 or wss://xxxx.ngrok-free.app"
                 className="w-full rounded-xl bg-white border border-slate-300 px-3 py-2.5 text-xs font-mono text-slate-900 focus:border-cyan-500 focus:outline-none shadow-xs"
               />
+              <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                <span>Supports Ngrok HTTP (wss://) &amp; TCP tunnels</span>
+                <button
+                  onClick={() => {
+                    const defaultProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+                    const relay = `${defaultProtocol}//${window.location.host}/ws/relay?role=phone`;
+                    setTunnelUrl(relay);
+                  }}
+                  className="text-cyan-700 hover:underline font-semibold cursor-pointer"
+                >
+                  Use Cloud Relay
+                </button>
+              </div>
             </div>
 
             {/* Secret Auth Token */}
@@ -1378,7 +1420,7 @@ export default function App() {
                 disabled={isConnecting}
                 className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-bold font-mono text-xs active:scale-95 transition-all text-center shadow-md cursor-pointer"
               >
-                {isConnecting ? "Connecting..." : "Connect Tunnel"}
+                {isConnecting ? "Connecting..." : "Connect Ngrok Tunnel"}
               </button>
 
               <a
